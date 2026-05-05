@@ -1,0 +1,254 @@
+# Superhero Universe Wiki — Spec
+
+Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md)
+
+---
+
+## Project Philosophy
+
+- **Collaborative fiction** over canon control: contributors own their articles, the community shapes the universe
+- **Wiki-diving first**: every article should link to others; reading one should pull you deeper
+- **Structured templates**: format enforced by the application
+- **Minimal infrastructure**: self-hosted, no managed services at this scale
+
+---
+
+## Tech Stack
+
+| Layer | Tool |
+|---|---|
+| Framework | **FastAPI** |
+| Templating | **Jinja2** |
+| ORM | **SQLAlchemy 2.x + Alembic** |
+| DB (dev) | **PostgreSQL** (via devenv service) |
+| DB (prod) | **PostgreSQL** (via `services.postgresql`) |
+| Auth | **GitHub OAuth** |
+| Markdown | **markdown-it-py** |
+| Python packaging | **uv + pyproject.toml** |
+| Local dev | **devenv** |
+| Production packaging | **uv2nix** |
+| Production system | **NixOS** |
+| Reverse proxy | **Caddy** (via `services.caddy`) |
+| Process management | **systemd** (via NixOS module) |
+
+---
+
+## Content Model
+
+Six article types, each with a strict template. All articles have a YAML frontmatter block with required metadata fields (exact fields TBD per type) and a `schema_version` field, followed by freeform Markdown narrative sections.
+
+### 1. Profile (`profile/`)
+
+The core unit. Each profile covers a hero, villain, or otherwise notable individual.
+
+### 2. Event (`event/`)
+
+Articles covering battles, disasters, first appearances, turning points. The connective tissue for wiki-diving.
+
+### 3. Organization (`org/`)
+
+Teams, agencies, corporations, cults.
+
+### 4. Location (`location/`)
+
+Cities, bases, anomalous zones.
+
+### 5. Technology / Artifact (`tech/`)
+
+Gear, serums, relics.
+
+### 6. Lore (`lore/`)
+
+World-building entries: power classification systems, historical events, in-universe laws. No single author — community-maintained.
+
+---
+
+## Article Naming Convention
+
+`CAPE-XXXX` for profiles (4-digit number, auto-assigned by DB sequence).
+All other types use slug-based naming (`event/the-chicago-collapse`, `org/the-patrol`).
+
+---
+
+## Database Schema
+
+Per-type metadata fields live in a JSONB column, validated at the application layer against each type's Pydantic schema. This keeps the DB schema stable as field definitions evolve.
+
+```sql
+users (
+  id, github_id, github_username, display_name,
+  role,            -- contributor | moderator | admin
+  created_at
+)
+
+articles (
+  id, slug, article_type, designation,
+  schema_version,
+  metadata JSONB,  -- per-type required fields, validated in app
+  content TEXT,    -- raw Markdown body
+  author_id REFERENCES users(id),
+  status,          -- draft | pending | published | rejected
+  created_at, updated_at, published_at
+)
+
+article_tags (article_id, tag)
+
+votes (
+  id, article_id REFERENCES articles(id),
+  user_id REFERENCES users(id),
+  value SMALLINT,  -- +1 or -1
+  created_at,
+  UNIQUE(article_id, user_id)
+)
+
+comments (
+  id, article_id REFERENCES articles(id),
+  author_id REFERENCES users(id),
+  body TEXT,
+  created_at, updated_at
+)
+
+article_history (
+  id, article_id REFERENCES articles(id),
+  editor_id REFERENCES users(id),
+  metadata_snapshot JSONB,
+  content_snapshot TEXT,
+  edited_at
+)
+```
+
+---
+
+## Auth: GitHub OAuth
+
+1. User clicks "Sign in with GitHub"
+2. GitHub redirects back with a code; server exchanges it for a token
+3. Server fetches GitHub user profile, upserts a `users` row
+4. Session stored server-side (signed cookie or JWT)
+
+Roles:
+- **Contributor**: submit articles, comment, vote
+- **Moderator**: approve/reject submissions, edit any article
+- **Admin**: promote users, manage site config
+
+---
+
+## Contribution Workflow
+
+1. Authenticated user opens in-app editor, selects article type
+2. Fills required metadata fields (form-driven, validated against type schema)
+3. Writes Markdown body with live preview
+4. Submits → article saved as `status: pending`, moderators notified
+5. Moderator reviews in moderation queue: approve, request changes, or reject with note
+6. Approved → `status: published`, visible immediately
+
+---
+
+## Features
+
+- User accounts with contribution history
+- In-app article editor with Markdown preview
+- Moderation queue
+- Voting (+1/−1 per article, one vote per user)
+- Comments on article pages
+- Article edit history with diffs
+- Full-text search via Postgres `tsvector`
+- Tag browsing with article counts
+- Contributor profiles listing authored articles
+
+---
+
+## Application Structure
+
+`superhero_project/` is a placeholder — rename once the project has a name.
+
+```
+superhero_project/
+  main.py
+  config.py
+  db/
+    models.py
+    session.py
+  routers/
+    articles.py
+    auth.py
+    votes.py
+    comments.py
+    moderation.py
+  domain/
+    profile.py
+    event.py
+    org.py
+    location.py
+    tech.py
+    lore.py
+  templates/
+    base.html
+    article.html
+    index.html
+    moderation/
+      queue.html
+  static/
+    css/
+    js/
+alembic/
+flake.nix
+devenv.nix
+nix/
+  module.nix
+  server.nix
+pyproject.toml
+uv.lock
+docs/
+  style-guide.md
+  canon-rules.md
+  how-to-contribute.md
+```
+
+---
+
+## Deployment
+
+```
+VPS (NixOS)
+├── services.caddy      — reverse proxy, automatic TLS
+├── services.postgresql — data in /var/lib/postgresql
+└── systemd unit        — FastAPI via uvicorn, defined in nix/module.nix
+```
+
+Deploy: `nixos-rebuild switch --flake .#server --target-host user@host`
+Rollback: `nixos-rebuild switch --rollback`
+Backups: `pg_dump` on a systemd timer declared in the NixOS config.
+
+---
+
+## Portability
+
+The `flake.nix` defines the entire server configuration. Moving providers is provisioning a NixOS machine and pointing DNS.
+
+---
+
+## Cost Estimate
+
+| Component | ~Annual Cost |
+|---|---|
+| VPS (2 vCPU, 4GB RAM) — Hetzner CX22 / Linode 4GB / Lightsail 4GB | $50–85 |
+| Domain — Cloudflare at-cost (~$9) or Namecheap (~$12) | $9–15 |
+| DNS — Cloudflare free tier | $0 |
+| **Total** | **~$60–100/yr** |
+
+At meaningful scale, move Postgres to a managed instance and upgrade the VPS.
+
+---
+
+## Milestone Plan
+
+| Milestone | Contents |
+|---|---|
+| [M1: Foundation](../milestone/M1_Foundation.md) | Project skeleton, DB models, Alembic migrations, devenv + NixOS module |
+| [M2: Auth](../milestone/M2_Auth.md) | GitHub OAuth, user model, session management, role system |
+| [M3: Articles](../milestone/M3_Articles.md) | Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing |
+| [M4: Moderation](../milestone/M4_Moderation.md) | Submission workflow, moderation queue, status transitions |
+| [M5: Community](../milestone/M5_Community.md) | Voting, comments, contributor profiles, tag browsing |
+| [M6: Search](../milestone/M6_Search.md) | Postgres full-text search, search UI |
+| [M7: Content](../milestone/M7_Content.md) | Style guide, canon rules, seed articles to establish tone and demonstrate wiki-diving |
