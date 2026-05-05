@@ -2,17 +2,18 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
 .mypy_cache/
+.ruff_cache/
+.venv/
 
 # uv
 .python-version
 
 # Nix
-result
-result-*
 .devenv/
 devenv.lock
+result
+result-*
 
 # Env
 .env
