@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# uv
+.python-version
+
+# Nix
+result
+result-*
+
+# Env
+.env
+.env.*
+
+# Editor
+.DS_Store

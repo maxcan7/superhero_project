@@ -5,7 +5,7 @@ Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
 
 ---
 
-- [ ] **1.** `chore: init project with uv and pyproject.toml`
+- [x] **1.** `chore: init project with uv and pyproject.toml`
   Bootstrap Python packaging; pin runtime deps.
   `pyproject.toml uv.lock`
 
