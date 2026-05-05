@@ -1,5 +1,5 @@
 # M1: Foundation
-Status: not started
+Status: in-progress
 
 Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
 
@@ -17,7 +17,7 @@ Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
   Systemd unit, Caddy reverse proxy, pg_dump backup timer.
   `nix/meta.nix nix/module.nix nix/server.nix`
 
-- [ ] **4.** `feat: add SQLAlchemy models and session factory`
+- [x] **4.** `feat: add SQLAlchemy models and session factory`
   All ORM models: users, articles, article_tags, votes, comments, article_history.
   `superhero_project/db/models.py superhero_project/db/session.py`
 
