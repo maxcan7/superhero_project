@@ -3,6 +3,7 @@ name = "superhero-project"
 dynamic = ["version"]
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13,<2",
     "asyncpg",
     "sqlalchemy[asyncio]>=2.0,<3",
 ]
@@ -35,3 +36,19 @@ force-single-line = true
 python_version = "3.12"
 strict = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
+
+[tool.alembic]
+script_location = "alembic"
+prepend_sys_path = ["."]
+
+[[tool.alembic.post_write_hooks]]
+name = "ruff-format"
+type = "exec"
+executable = "ruff"
+options = "format REVISION_SCRIPT_FILENAME"
+
+[[tool.alembic.post_write_hooks]]
+name = "ruff-check"
+type = "exec"
+executable = "ruff"
+options = "check --fix REVISION_SCRIPT_FILENAME"

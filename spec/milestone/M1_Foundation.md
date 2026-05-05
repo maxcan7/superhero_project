@@ -1,5 +1,5 @@
 # M1: Foundation
-Status: in-progress
+Status: complete
 
 Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
 
@@ -21,6 +21,6 @@ Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
   All ORM models: users, articles, article_tags, votes, comments, article_history.
   `superhero_project/db/models.py superhero_project/db/session.py`
 
-- [ ] **5.** `chore: init Alembic and generate initial migration`
+- [x] **5.** `chore: init Alembic and generate initial migration`
   Alembic config + first migration creating all tables.
   `alembic/ alembic/versions/<hash>_init.py`
