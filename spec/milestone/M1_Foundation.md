@@ -9,7 +9,7 @@ Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
   Bootstrap Python packaging; pin runtime deps.
   `pyproject.toml uv.lock`
 
-- [ ] **2.** `chore: add devenv and Nix flake for local dev`
+- [x] **2.** `chore: add devenv and Nix flake for local dev`
   Define local dev environment with PostgreSQL service.
   `devenv.nix flake.nix`
 
