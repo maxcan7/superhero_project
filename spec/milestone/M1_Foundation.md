@@ -13,9 +13,9 @@ Project skeleton, DB models, Alembic migrations, devenv + NixOS module.
   Define local dev environment with PostgreSQL service.
   `devenv.nix flake.nix`
 
-- [ ] **3.** `chore: add NixOS module and server config`
+- [x] **3.** `chore: add NixOS module and server config`
   Systemd unit, Caddy reverse proxy, pg_dump backup timer.
-  `nix/module.nix nix/server.nix`
+  `nix/meta.nix nix/module.nix nix/server.nix`
 
 - [ ] **4.** `feat: add SQLAlchemy models and session factory`
   All ORM models: users, articles, article_tags, votes, comments, article_history.
