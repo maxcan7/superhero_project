@@ -1,3 +1,5 @@
+"""GitHub OAuth router: login redirect, token exchange, and logout."""
+
 from urllib.parse import urlencode
 
 import httpx
@@ -18,7 +20,11 @@ _GITHUB_USER_URL = "https://api.github.com/user"
 
 
 async def _fetch_github_user(code: str) -> tuple[int, str, str]:
-    """Exchange OAuth code for (github_id, username, display_name)."""
+    """Exchange the OAuth callback code for a GitHub token, then fetch the user profile.
+
+    Returns (github_id, login, display_name).
+    """
+
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
             _GITHUB_TOKEN_URL,
@@ -47,6 +53,8 @@ async def _fetch_github_user(code: str) -> tuple[int, str, str]:
 
 
 async def _upsert_user(gh_id: int, gh_username: str, display_name: str) -> User:
+    """Insert or update the users row for the given GitHub identity."""
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(User).where(User.github_id == gh_id))
         user = result.scalar_one_or_none()
@@ -65,6 +73,7 @@ async def _upsert_user(gh_id: int, gh_username: str, display_name: str) -> User:
 
 @router.get("/login")
 async def login() -> RedirectResponse:
+    """Redirect the user to GitHub's OAuth authorization page."""
     params = urlencode(
         {
             "client_id": settings.github_client_id,
@@ -77,6 +86,7 @@ async def login() -> RedirectResponse:
 
 @router.get("/callback")
 async def callback(request: Request, code: str) -> RedirectResponse:
+    """Handle the GitHub OAuth callback, upsert the user, and set the session."""
     gh_id, gh_username, display_name = await _fetch_github_user(code)
     user = await _upsert_user(gh_id, gh_username, display_name)
     request.session["user_id"] = user.id
@@ -86,5 +96,6 @@ async def callback(request: Request, code: str) -> RedirectResponse:
 
 @router.get("/logout")
 async def logout(request: Request) -> RedirectResponse:
+    """Clear the session and redirect to the home page."""
     request.session.clear()
     return RedirectResponse("/")

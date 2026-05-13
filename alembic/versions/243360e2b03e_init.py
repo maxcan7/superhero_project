@@ -1,9 +1,8 @@
-"""init
+"""init.
 
 Revision ID: 243360e2b03e
 Revises:
 Create Date: 2026-05-05 12:26:04.078935
-
 """
 
 from collections.abc import Sequence

@@ -1,3 +1,8 @@
+"""Pydantic metadata schema for organization articles.
+
+Covers teams, agencies, corporations, and cults.
+"""
+
 from enum import StrEnum
 
 from pydantic import BaseModel
@@ -5,6 +10,8 @@ from pydantic import ConfigDict
 
 
 class OrgType(StrEnum):
+    """Organizational category."""
+
     team = "team"
     agency = "agency"
     corporation = "corporation"
@@ -13,6 +20,8 @@ class OrgType(StrEnum):
 
 
 class OrgStatus(StrEnum):
+    """Operational status of an organization."""
+
     active = "active"
     disbanded = "disbanded"
     defunct = "defunct"
@@ -20,6 +29,8 @@ class OrgStatus(StrEnum):
 
 
 class OrgMetadata(BaseModel):
+    """Validated shape of the JSONB metadata column for organization articles."""
+
     model_config = ConfigDict(extra="forbid")
 
     aliases: list[str] = []

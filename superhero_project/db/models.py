@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM models."""
+
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -18,16 +20,20 @@ from sqlalchemy.orm import relationship
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base for all ORM models."""
 
 
 class UserRole(StrEnum):
+    """Role controlling a user's permissions."""
+
     contributor = "contributor"
     moderator = "moderator"
     admin = "admin"
 
 
 class ArticleType(StrEnum):
+    """Supported article types, each with its own metadata schema."""
+
     profile = "profile"
     event = "event"
     org = "org"
@@ -37,6 +43,8 @@ class ArticleType(StrEnum):
 
 
 class ArticleStatus(StrEnum):
+    """Publication lifecycle state of an article."""
+
     draft = "draft"
     pending = "pending"
     published = "published"
@@ -44,6 +52,8 @@ class ArticleStatus(StrEnum):
 
 
 class User(Base):
+    """Authenticated contributor, moderator, or admin."""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -66,6 +76,8 @@ class User(Base):
 
 
 class Article(Base):
+    """Wiki article of any type, with per-type JSONB metadata and a Markdown body."""
+
     __tablename__ = "articles"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -110,6 +122,8 @@ class Article(Base):
 
 
 class ArticleTag(Base):
+    """Many-to-many tag applied to an article."""
+
     __tablename__ = "article_tags"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
@@ -119,6 +133,8 @@ class ArticleTag(Base):
 
 
 class Vote(Base):
+    """Single +1 or -1 vote cast by a user on an article."""
+
     __tablename__ = "votes"
     __table_args__ = (UniqueConstraint("article_id", "user_id"),)
 
@@ -135,6 +151,8 @@ class Vote(Base):
 
 
 class Comment(Base):
+    """User comment on an article."""
+
     __tablename__ = "comments"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -153,6 +171,8 @@ class Comment(Base):
 
 
 class ArticleHistory(Base):
+    """Snapshot of an article's metadata and content at the time of an edit."""
+
     __tablename__ = "article_history"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)

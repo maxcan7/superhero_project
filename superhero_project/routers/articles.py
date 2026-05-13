@@ -1,3 +1,5 @@
+"""Articles router: CRUD, designation/slug routing, and Markdown rendering."""
+
 import re
 import uuid
 from collections.abc import AsyncGenerator
@@ -47,6 +49,12 @@ _METADATA_SCHEMAS: dict[ArticleType, type[BaseModel]] = {
 
 
 class ArticleCreate(BaseModel):
+    """Request body for article creation.
+
+    `slug` is ignored for profiles; the designation (CAPE-XXXX) is auto-assigned from
+    the DB-allocated id.
+    """
+
     article_type: ArticleType
     slug: str = ""
     metadata: dict[str, Any] = {}
@@ -55,12 +63,19 @@ class ArticleCreate(BaseModel):
 
 
 class ArticleUpdate(BaseModel):
+    """Partial update — only provided fields are applied."""
+
     metadata: dict[str, Any] | None = None
     content: str | None = None
     tags: list[str] | None = None
 
 
 class ArticleOut(BaseModel):
+    """API response shape for an article.
+
+    `rendered_body` is `content` rendered from Markdown to HTML.
+    """
+
     id: int
     slug: str
     article_type: ArticleType
@@ -78,6 +93,8 @@ class ArticleOut(BaseModel):
 
 
 async def _db_session() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency that opens one AsyncSession per request."""
+
     async with AsyncSessionLocal() as db:
         yield db
 
@@ -92,6 +109,7 @@ def _render(text: str) -> str:
 def _validate_metadata(
     article_type: ArticleType, data: dict[str, Any]
 ) -> dict[str, Any]:
+    """Dispatch to the per-type Pydantic schema and raise 422 on failure."""
     try:
         return _METADATA_SCHEMAS[article_type](**data).model_dump()
     except ValidationError as exc:
@@ -99,6 +117,7 @@ def _validate_metadata(
 
 
 async def _get_user(request: Request, db: AsyncSession) -> User:
+    """Resolve the session user_id to a User row, raising 401 if absent or stale."""
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -109,6 +128,7 @@ async def _get_user(request: Request, db: AsyncSession) -> User:
 
 
 def _can_edit(user: User, article: Article) -> bool:
+    """True if the user authored the article or holds an elevated role."""
     return user.id == article.author_id or user.role in (
         UserRole.moderator,
         UserRole.admin,
@@ -116,6 +136,10 @@ def _can_edit(user: User, article: Article) -> bool:
 
 
 def _to_out(article: Article) -> ArticleOut:
+    """Map an ORM Article (tags eagerly loaded) to ArticleOut.
+
+    Renders article content from Markdown to HTML.
+    """
     return ArticleOut(
         id=article.id,
         slug=article.slug,
@@ -135,6 +159,7 @@ def _to_out(article: Article) -> ArticleOut:
 
 
 async def _fetch(identifier: str, db: AsyncSession) -> Article:
+    """Look up by designation for CAPE-XXXX identifiers, by slug for all others."""
     col = Article.designation if _CAPE_RE.match(identifier) else Article.slug
     stmt = select(Article).where(col == identifier).options(selectinload(Article.tags))
     article = (await db.execute(stmt)).scalar_one_or_none()
@@ -145,6 +170,11 @@ async def _fetch(identifier: str, db: AsyncSession) -> Article:
 
 @router.post("/", status_code=201)
 async def create_article(request: Request, body: ArticleCreate, db: DB) -> ArticleOut:
+    """Create a new article as a draft.
+
+    Profiles are inserted with a UUID tmp slug so the CAPE designation can be derived
+    from the DB-assigned id before the transaction commits.
+    """
     user = await _get_user(request, db)
     validated_meta = _validate_metadata(body.article_type, body.metadata)
     is_profile = body.article_type == ArticleType.profile
@@ -180,6 +210,7 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
 
 @router.get("/{identifier}")
 async def get_article(identifier: str, db: DB) -> ArticleOut:
+    """Fetch a single article by designation or slug."""
     return _to_out(await _fetch(identifier, db))
 
 
@@ -187,6 +218,7 @@ async def get_article(identifier: str, db: DB) -> ArticleOut:
 async def update_article(
     request: Request, identifier: str, body: ArticleUpdate, db: DB
 ) -> ArticleOut:
+    """Update an article, snapshotting the prior state to ArticleHistory first."""
     user = await _get_user(request, db)
     article = await _fetch(identifier, db)
 
@@ -224,6 +256,10 @@ async def update_article(
 
 @router.delete("/{identifier}", status_code=204)
 async def delete_article(request: Request, identifier: str, db: DB) -> None:
+    """Delete an article.
+
+    Only the author or a moderator/admin may do this.
+    """
     user = await _get_user(request, db)
     article = await _fetch(identifier, db)
 

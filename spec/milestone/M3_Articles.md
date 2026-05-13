@@ -1,5 +1,5 @@
 # M3: Articles
-Status: not started
+Status: in progress
 
 Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
 

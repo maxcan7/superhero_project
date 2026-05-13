@@ -1,4 +1,14 @@
 repos:
+
+  - repo: local
+    hooks:
+      - id: docformatter
+        name: docformatter
+        entry: uv run docformatter
+        language: system
+        types: [python]
+        args: [--in-place, --wrap-summaries=88, --wrap-descriptions=88]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.2
     hooks:

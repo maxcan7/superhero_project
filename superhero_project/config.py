@@ -1,8 +1,12 @@
+"""Application settings loaded from environment variables (or a .env file)."""
+
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Application settings, populated from environment variables or a .env file."""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str

@@ -1,3 +1,5 @@
+"""Pydantic metadata schema for location articles (cities, bases, anomalous zones)."""
+
 from enum import StrEnum
 
 from pydantic import BaseModel
@@ -5,6 +7,8 @@ from pydantic import ConfigDict
 
 
 class LocationType(StrEnum):
+    """Category of location."""
+
     city = "city"
     base = "base"
     zone = "zone"
@@ -13,6 +17,8 @@ class LocationType(StrEnum):
 
 
 class LocationStatus(StrEnum):
+    """Current status of a location."""
+
     active = "active"
     destroyed = "destroyed"
     abandoned = "abandoned"
@@ -20,6 +26,8 @@ class LocationStatus(StrEnum):
 
 
 class LocationMetadata(BaseModel):
+    """Validated shape of the JSONB metadata column for location articles."""
+
     model_config = ConfigDict(extra="forbid")
 
     location_type: LocationType = LocationType.other
