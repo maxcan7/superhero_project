@@ -7,10 +7,11 @@ from fastapi import APIRouter
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.config import settings
 from superhero_project.db.models import User
-from superhero_project.db.session import AsyncSessionLocal
+from superhero_project.dependencies import DB
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,22 +53,22 @@ async def _fetch_github_user(code: str) -> tuple[int, str, str]:
     return int(gh["id"]), str(gh["login"]), str(gh.get("name") or gh["login"])
 
 
-async def _upsert_user(gh_id: int, gh_username: str, display_name: str) -> User:
+async def _upsert_user(
+    gh_id: int, gh_username: str, display_name: str, db: AsyncSession
+) -> User:
     """Insert or update the users row for the given GitHub identity."""
-
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(select(User).where(User.github_id == gh_id))
-        user = result.scalar_one_or_none()
-        if user is None:
-            user = User(
-                github_id=gh_id, github_username=gh_username, display_name=display_name
-            )
-            db.add(user)
-        else:
-            user.github_username = gh_username
-            user.display_name = display_name
-        await db.commit()
-        await db.refresh(user)
+    result = await db.execute(select(User).where(User.github_id == gh_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        user = User(
+            github_id=gh_id, github_username=gh_username, display_name=display_name
+        )
+        db.add(user)
+    else:
+        user.github_username = gh_username
+        user.display_name = display_name
+    await db.commit()
+    await db.refresh(user)
     return user
 
 
@@ -85,10 +86,10 @@ async def login() -> RedirectResponse:
 
 
 @router.get("/callback")
-async def callback(request: Request, code: str) -> RedirectResponse:
+async def callback(request: Request, code: str, db: DB) -> RedirectResponse:
     """Handle the GitHub OAuth callback, upsert the user, and set the session."""
     gh_id, gh_username, display_name = await _fetch_github_user(code)
-    user = await _upsert_user(gh_id, gh_username, display_name)
+    user = await _upsert_user(gh_id, gh_username, display_name, db)
     request.session["user_id"] = user.id
     request.session["role"] = user.role.value
     return RedirectResponse("/")

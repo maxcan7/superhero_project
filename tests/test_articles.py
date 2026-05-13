@@ -1,4 +1,4 @@
-"""Tests for article HTML views and the Markdown render endpoint."""
+"""Tests for article HTML views, JSON API, and the Markdown render endpoint."""
 
 import pytest
 from httpx import AsyncClient
@@ -14,9 +14,9 @@ pytestmark = pytest.mark.anyio
 @pytest.mark.parametrize(
     ("content", "expected_tag"),
     [
-        ("# Heading", "<h1>"),
-        ("**bold**", "<strong>"),
-        ("plain text", "<p>"),
+        pytest.param("# Heading", "<h1>", id="heading"),
+        pytest.param("**bold**", "<strong>", id="bold"),
+        pytest.param("plain text", "<p>", id="paragraph"),
     ],
 )
 async def test_render_produces_html(
@@ -35,15 +35,175 @@ async def test_render_empty(client: AsyncClient) -> None:
     assert resp.text.strip() == ""
 
 
+# ── JSON API ───────────────────────────────────────────────────────────────────
+
+
+async def test_get_article_json(
+    client: AsyncClient, published_article: Article
+) -> None:
+    """GET /articles/{id} returns the article as JSON with a rendered body."""
+    resp = await client.get(f"/articles/{published_article.slug}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["slug"] == published_article.slug
+    assert "<h1>" in data["rendered_body"]
+
+
+# ── Create article ─────────────────────────────────────────────────────────────
+
+
+async def test_create_article_non_profile(auth_client: AsyncClient) -> None:
+    """POST /articles/ creates a draft lore article and returns 201."""
+    resp = await auth_client.post(
+        "/articles/",
+        json={"article_type": "lore", "slug": "origin-of-powers", "tags": ["history"]},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["slug"] == "origin-of-powers"
+    assert data["status"] == "draft"
+    assert data["tags"] == ["history"]
+
+
+async def test_create_profile_auto_assigns_designation(
+    auth_client: AsyncClient,
+) -> None:
+    """POST /articles/ with profile type auto-assigns a CAPE designation as slug."""
+    resp = await auth_client.post(
+        "/articles/",
+        json={
+            "article_type": "profile",
+            "metadata": {
+                "aliases": [],
+                "affiliation": [],
+                "powers": [],
+                "status": "active",
+                "base_of_operations": None,
+                "first_appearance": None,
+            },
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["designation"].startswith("CAPE-")
+    assert data["slug"] == data["designation"]
+
+
+async def test_create_article_invalid_metadata(auth_client: AsyncClient) -> None:
+    """POST /articles/ with metadata that fails schema validation returns 422."""
+    resp = await auth_client.post(
+        "/articles/",
+        json={"article_type": "profile", "metadata": {"not_a_field": True}},
+    )
+    assert resp.status_code == 422
+
+
+# ── Update article ─────────────────────────────────────────────────────────────
+
+
+async def test_update_article(
+    auth_client: AsyncClient, published_article: Article
+) -> None:
+    """PUT /articles/{id} by the author updates content and returns the new state."""
+    resp = await auth_client.put(
+        f"/articles/{published_article.slug}", json={"content": "## Updated"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["content"] == "## Updated"
+
+
+async def test_update_article_tags(
+    auth_client: AsyncClient, published_article: Article
+) -> None:
+    """PUT /articles/{id} with a tags list replaces existing tags."""
+    resp = await auth_client.put(
+        f"/articles/{published_article.slug}", json={"tags": ["updated-tag"]}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["tags"] == ["updated-tag"]
+
+
+# ── Delete article ─────────────────────────────────────────────────────────────
+
+
+async def test_delete_article(
+    auth_client: AsyncClient, published_article: Article
+) -> None:
+    """DELETE /articles/{id} by the author returns 204."""
+    resp = await auth_client.delete(f"/articles/{published_article.slug}")
+    assert resp.status_code == 204
+
+
+# ── Access control (unauthenticated → 401, non-author → 403) ──────────────────
+
+
+@pytest.mark.parametrize(
+    ("method", "url_tmpl", "body"),
+    [
+        pytest.param(
+            "post", "/articles/", {"article_type": "lore", "slug": "test"}, id="create"
+        ),
+        pytest.param("put", "/articles/{slug}", {"content": "## Nope"}, id="update"),
+        pytest.param("delete", "/articles/{slug}", None, id="delete"),
+    ],
+)
+async def test_protected_route_requires_session(
+    client: AsyncClient,
+    published_article: Article,
+    method: str,
+    url_tmpl: str,
+    body: dict | None,
+) -> None:
+    """Unauthenticated requests to write endpoints return 401."""
+    url = url_tmpl.format(slug=published_article.slug)
+    kwargs = {"json": body} if body is not None else {}
+    resp = await getattr(client, method)(url, **kwargs)
+    assert resp.status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("method", "body"),
+    [
+        pytest.param("put", {"content": "## Hacked"}, id="update"),
+        pytest.param("delete", None, id="delete"),
+    ],
+)
+async def test_write_route_forbidden_for_non_author(
+    other_auth_client: AsyncClient,
+    published_article: Article,
+    method: str,
+    body: dict | None,
+) -> None:
+    """Write requests on an article owned by another user return 403."""
+    kwargs = {"json": body} if body is not None else {}
+    resp = await getattr(other_auth_client, method)(
+        f"/articles/{published_article.slug}", **kwargs
+    )
+    assert resp.status_code == 403
+
+
 # ── Article HTML view ──────────────────────────────────────────────────────────
 
 
-async def test_article_view(client: AsyncClient, published_article: Article) -> None:
-    """Article view returns 200 with the designation and rendered Markdown body."""
-    resp = await client.get(f"/articles/{published_article.slug}/view")
+@pytest.mark.parametrize(
+    ("use_auth", "expected_text"),
+    [
+        pytest.param(False, "<h1>", id="anonymous"),
+        pytest.param(True, "Test User", id="logged-in"),
+    ],
+)
+async def test_article_view(
+    client: AsyncClient,
+    auth_client: AsyncClient,
+    published_article: Article,
+    use_auth: bool,
+    expected_text: str,
+) -> None:
+    """Article view returns 200; logged-in user sees their display name."""
+    c = auth_client if use_auth else client
+    resp = await c.get(f"/articles/{published_article.slug}/view")
     assert resp.status_code == 200
-    assert published_article.designation in resp.text
-    assert "<h1>" in resp.text
+    assert expected_text in resp.text
 
 
 async def test_article_view_404(client: AsyncClient) -> None:
@@ -62,10 +222,22 @@ async def test_index_empty(client: AsyncClient) -> None:
     assert "No published articles yet" in resp.text
 
 
-async def test_index_lists_published(
-    client: AsyncClient, published_article: Article
+@pytest.mark.parametrize(
+    ("use_auth", "expected_text"),
+    [
+        pytest.param(False, "CAPE-0001", id="anonymous"),
+        pytest.param(True, "Test User", id="logged-in"),
+    ],
+)
+async def test_index_with_article(
+    client: AsyncClient,
+    auth_client: AsyncClient,
+    published_article: Article,
+    use_auth: bool,
+    expected_text: str,
 ) -> None:
-    """Index lists published articles by slug."""
-    resp = await client.get("/")
+    """Index lists published articles; logged-in user also sees their display name."""
+    c = auth_client if use_auth else client
+    resp = await c.get("/")
     assert resp.status_code == 200
-    assert published_article.slug in resp.text
+    assert expected_text in resp.text

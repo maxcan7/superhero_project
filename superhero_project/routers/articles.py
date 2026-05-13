@@ -234,10 +234,7 @@ async def update_article(
     if body.content is not None:
         article.content = body.content
     if body.tags is not None:
-        for existing_tag in article.tags:
-            await db.delete(existing_tag)
-        for tag in body.tags:
-            db.add(ArticleTag(article_id=article.id, tag=tag))
+        article.tags = [ArticleTag(article_id=article.id, tag=tag) for tag in body.tags]
 
     await db.commit()
 
