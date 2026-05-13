@@ -19,5 +19,9 @@ result-*
 .env
 .env.*
 
+# Testing
+.coverage
+htmlcov/
+
 # Editor
 .DS_Store
