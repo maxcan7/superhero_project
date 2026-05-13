@@ -168,6 +168,18 @@ async def _fetch(identifier: str, db: AsyncSession) -> Article:
     return article
 
 
+class RenderRequest(BaseModel):
+    """Request body for the Markdown render helper."""
+
+    content: str
+
+
+@router.post("/render", response_class=HTMLResponse)
+async def render_markdown(body: RenderRequest) -> Response:
+    """Render a Markdown string to HTML — used by the live editor preview."""
+    return HTMLResponse(_render(body.content))
+
+
 @router.post("/", status_code=201)
 async def create_article(request: Request, body: ArticleCreate, db: DB) -> ArticleOut:
     """Create a new article as a draft.

@@ -1,6 +1,8 @@
 """FastAPI application factory."""
 
 from pathlib import Path
+from typing import Any
+from typing import TypedDict
 
 from fastapi import Depends
 from fastapi import FastAPI
@@ -17,19 +19,62 @@ from starlette.responses import Response
 from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
+from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.dependencies import get_db
 from superhero_project.routers import articles
 from superhero_project.routers import auth
 
+
+class _ArticleListItem(TypedDict):
+    slug: str
+    designation: str | None
+    article_type: ArticleType
+    metadata: dict[str, Any]
+    tags: list[str]
+
+
 _templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+
+async def _recent_articles(db: AsyncSession) -> list[_ArticleListItem]:
+    """Return the 20 most recently updated published articles as template dicts."""
+    result = await db.execute(
+        select(Article)
+        .where(Article.status == ArticleStatus.published)
+        .options(selectinload(Article.tags))
+        .order_by(Article.updated_at.desc())
+        .limit(20)
+    )
+    return [
+        {
+            "slug": a.slug,
+            "designation": a.designation,
+            "article_type": a.article_type,
+            "metadata": a.metadata_,
+            "tags": [t.tag for t in a.tags],
+        }
+        for a in result.scalars()
+    ]
+
+
+async def _session_user(request: Request, db: AsyncSession) -> User | None:
+    """Resolve the session user_id to a User row, returning None if absent or stale."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return None
+    return await db.get(User, user_id)
 
 
 def create_app() -> FastAPI:
     """Construct and configure the FastAPI application."""
     app = FastAPI(title="Superhero Project")
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount(
+        "/static",
+        StaticFiles(directory=Path(__file__).parent / "static"),
+        name="static",
+    )
     app.include_router(auth.router)
     app.include_router(articles.router)
 
@@ -37,34 +82,13 @@ def create_app() -> FastAPI:
     async def index(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
         """Render the front page with the 20 most recently updated published
         articles."""
-        result = await db.execute(
-            select(Article)
-            .where(Article.status == ArticleStatus.published)
-            .options(selectinload(Article.tags))
-            .order_by(Article.updated_at.desc())
-            .limit(20)
-        )
-        article_rows = result.scalars().all()
-
-        user: User | None = None
-        user_id = request.session.get("user_id")
-        if user_id:
-            user = await db.get(User, user_id)
-
-        article_list = [
-            {
-                "slug": a.slug,
-                "designation": a.designation,
-                "article_type": a.article_type,
-                "metadata": a.metadata_,
-                "tags": [t.tag for t in a.tags],
-            }
-            for a in article_rows
-        ]
         return _templates.TemplateResponse(
             request=request,
             name="index.html",
-            context={"articles": article_list, "user": user},
+            context={
+                "articles": await _recent_articles(db),
+                "user": await _session_user(request, db),
+            },
         )
 
     return app

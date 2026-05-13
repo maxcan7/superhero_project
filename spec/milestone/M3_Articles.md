@@ -1,5 +1,5 @@
 # M3: Articles
-Status: in progress
+Status: complete
 
 Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
 
@@ -17,6 +17,6 @@ Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
   HTML shell with nav, article view (metadata sidebar + rendered body), front page.
   `superhero_project/templates/base.html superhero_project/templates/article.html superhero_project/templates/index.html`
 
-- [ ] **4.** `feat: add static assets`
+- [x] **4.** `feat: add static assets`
   Base stylesheet; JS for live Markdown preview in the editor.
   `superhero_project/static/css/ superhero_project/static/js/`

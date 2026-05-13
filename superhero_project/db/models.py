@@ -4,9 +4,11 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from sqlalchemy import JSON
 from sqlalchemy import BigInteger
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import String
 from sqlalchemy import Text
@@ -17,6 +19,9 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
+
+# SQLite only auto-increments INTEGER PRIMARY KEY (rowid alias), not BIGINT.
+_BigPK = BigInteger().with_variant(Integer(), "sqlite")
 
 
 class Base(DeclarativeBase):
@@ -56,7 +61,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     github_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     github_username: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False
@@ -80,7 +85,7 @@ class Article(Base):
 
     __tablename__ = "articles"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     article_type: Mapped[ArticleType] = mapped_column(
         SAEnum(ArticleType, name="article_type"), nullable=False
@@ -89,7 +94,7 @@ class Article(Base):
     schema_version: Mapped[int] = mapped_column(nullable=False, default=1)
     # "metadata" shadows DeclarativeBase.metadata, so we use metadata_ in Python
     metadata_: Mapped[dict[str, Any]] = mapped_column(
-        "metadata", JSONB, nullable=False, default=dict
+        "metadata", JSONB().with_variant(JSON(), "sqlite"), nullable=False, default=dict
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
@@ -138,7 +143,7 @@ class Vote(Base):
     __tablename__ = "votes"
     __table_args__ = (UniqueConstraint("article_id", "user_id"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     value: Mapped[int] = mapped_column(SmallInteger, nullable=False)
@@ -155,7 +160,7 @@ class Comment(Base):
 
     __tablename__ = "comments"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
@@ -175,10 +180,12 @@ class ArticleHistory(Base):
 
     __tablename__ = "article_history"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), nullable=False)
     editor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    metadata_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    metadata_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSONB().with_variant(JSON(), "sqlite"), nullable=False
+    )
     content_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     edited_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), nullable=False
