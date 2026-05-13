@@ -5,7 +5,7 @@ Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
 
 ---
 
-- [ ] **1.** `feat: add per-type Pydantic metadata schemas`
+- [x] **1.** `feat: add per-type Pydantic metadata schemas`
   One Pydantic model per article type; validates JSONB metadata at the app layer.
   `superhero_project/domain/profile.py superhero_project/domain/event.py superhero_project/domain/org.py superhero_project/domain/location.py superhero_project/domain/tech.py superhero_project/domain/lore.py`
 
