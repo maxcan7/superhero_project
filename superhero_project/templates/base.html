@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Superhero Wiki{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+  <header>
+    <nav class="site-nav">
+      <a class="site-title" href="/">Superhero Wiki</a>
+      <div class="nav-links">
+        {% if user %}
+          <span class="nav-user">{{ user.display_name }}</span>
+          <a href="/auth/logout">Log out</a>
+        {% else %}
+          <a href="/auth/login">Log in with GitHub</a>
+        {% endif %}
+      </div>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p>Superhero Wiki</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

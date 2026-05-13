@@ -13,7 +13,7 @@ Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
   Create/read/update/delete; designation routing for profiles, slug routing for all others; markdown-it-py body rendering.
   `superhero_project/routers/articles.py`
 
-- [ ] **3.** `feat: add base and article Jinja2 templates`
+- [x] **3.** `feat: add base and article Jinja2 templates`
   HTML shell with nav, article view (metadata sidebar + rendered body), front page.
   `superhero_project/templates/base.html superhero_project/templates/article.html superhero_project/templates/index.html`
 

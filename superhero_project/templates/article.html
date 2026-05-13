@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% set display_name = article.designation or article.slug %}
+
+{% block title %}{{ display_name }} — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="article-layout">
+
+  <aside class="metadata-sidebar">
+    <div class="article-type-badge">{{ article.article_type }}</div>
+    {% if article.designation %}
+      <p class="designation">{{ article.designation }}</p>
+    {% endif %}
+
+    <dl class="meta-list">
+      {% for key, value in article.metadata.items() %}
+        {% if value is not none and value != [] and value != "" %}
+          <div class="meta-row">
+            <dt>{{ key | replace("_", " ") | title }}</dt>
+            <dd>
+              {% if value is iterable and value is not string %}
+                {{ value | join(", ") }}
+              {% else %}
+                {{ value }}
+              {% endif %}
+            </dd>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </dl>
+
+    {% if article.tags %}
+      <div class="tag-list">
+        {% for tag in article.tags %}
+          <span class="tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="meta-footer">
+      <small>Status: {{ article.status }}</small>
+      {% if article.published_at %}
+        <br><small>Published: {{ article.published_at.strftime("%Y-%m-%d") }}</small>
+      {% endif %}
+    </div>
+  </aside>
+
+  <article class="article-body">
+    {{ article.rendered_body | safe }}
+  </article>
+
+</div>
+{% endblock %}

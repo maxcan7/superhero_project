@@ -2,21 +2,22 @@
 
 import re
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Annotated
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
-from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from markdown_it import MarkdownIt
 from pydantic import BaseModel
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.responses import Response
 
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleHistory
@@ -25,7 +26,7 @@ from superhero_project.db.models import ArticleTag
 from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
-from superhero_project.db.session import AsyncSessionLocal
+from superhero_project.dependencies import DB
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.location import LocationMetadata
 from superhero_project.domain.lore import LoreMetadata
@@ -35,6 +36,7 @@ from superhero_project.domain.tech import TechMetadata
 
 _md = MarkdownIt()
 _CAPE_RE = re.compile(r"^CAPE-\d{4,}$")
+_templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -92,16 +94,6 @@ class ArticleOut(BaseModel):
     tags: list[str]
 
 
-async def _db_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency that opens one AsyncSession per request."""
-
-    async with AsyncSessionLocal() as db:
-        yield db
-
-
-DB = Annotated[AsyncSession, Depends(_db_session)]
-
-
 def _render(text: str) -> str:
     return str(_md.render(text))
 
@@ -114,6 +106,14 @@ def _validate_metadata(
         return _METADATA_SCHEMAS[article_type](**data).model_dump()
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+
+async def _get_user_opt(request: Request, db: AsyncSession) -> User | None:
+    """Resolve the session user_id to a User row, returning None if absent or stale."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return None
+    return await db.get(User, user_id)
 
 
 async def _get_user(request: Request, db: AsyncSession) -> User:
@@ -252,6 +252,18 @@ async def update_article(
         .options(selectinload(Article.tags))
     )
     return _to_out(result.scalar_one())
+
+
+@router.get("/{identifier}/view", response_class=HTMLResponse)
+async def view_article_html(request: Request, identifier: str, db: DB) -> Response:
+    """Render an article as an HTML page."""
+    article = _to_out(await _fetch(identifier, db))
+    user = await _get_user_opt(request, db)
+    return _templates.TemplateResponse(
+        request=request,
+        name="article.html",
+        context={"article": article, "user": user},
+    )
 
 
 @router.delete("/{identifier}", status_code=204)
