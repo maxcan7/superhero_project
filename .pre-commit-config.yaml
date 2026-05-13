@@ -33,3 +33,10 @@ repos:
         types: [python]
         pass_filenames: false
         args: [superhero_project]
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types: [python]
+        pass_filenames: false
