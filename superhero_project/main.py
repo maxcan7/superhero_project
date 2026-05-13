@@ -20,7 +20,7 @@ from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
-from superhero_project.db.models import User
+from superhero_project.dependencies import get_current_user_opt
 from superhero_project.dependencies import get_db
 from superhero_project.routers import articles
 from superhero_project.routers import auth
@@ -58,14 +58,6 @@ async def _recent_articles(db: AsyncSession) -> list[_ArticleListItem]:
     ]
 
 
-async def _session_user(request: Request, db: AsyncSession) -> User | None:
-    """Resolve the session user_id to a User row, returning None if absent or stale."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return None
-    return await db.get(User, user_id)
-
-
 def create_app() -> FastAPI:
     """Construct and configure the FastAPI application."""
     app = FastAPI(title="Superhero Project")
@@ -87,7 +79,7 @@ def create_app() -> FastAPI:
             name="index.html",
             context={
                 "articles": await _recent_articles(db),
-                "user": await _session_user(request, db),
+                "user": await get_current_user_opt(request, db),
             },
         )
 

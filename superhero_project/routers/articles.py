@@ -27,6 +27,8 @@ from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
+from superhero_project.dependencies import get_current_user
+from superhero_project.dependencies import get_current_user_opt
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.location import LocationMetadata
 from superhero_project.domain.lore import LoreMetadata
@@ -108,25 +110,6 @@ def _validate_metadata(
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
 
-async def _get_user_opt(request: Request, db: AsyncSession) -> User | None:
-    """Resolve the session user_id to a User row, returning None if absent or stale."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return None
-    return await db.get(User, user_id)
-
-
-async def _get_user(request: Request, db: AsyncSession) -> User:
-    """Resolve the session user_id to a User row, raising 401 if absent or stale."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    user = await db.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user
-
-
 def _can_edit(user: User, article: Article) -> bool:
     """True if the user authored the article or holds an elevated role."""
     return user.id == article.author_id or user.role in (
@@ -187,7 +170,7 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     Profiles are inserted with a UUID tmp slug so the CAPE designation can be derived
     from the DB-assigned id before the transaction commits.
     """
-    user = await _get_user(request, db)
+    user = await get_current_user(request, db)
     validated_meta = _validate_metadata(body.article_type, body.metadata)
     is_profile = body.article_type == ArticleType.profile
 
@@ -231,7 +214,7 @@ async def update_article(
     request: Request, identifier: str, body: ArticleUpdate, db: DB
 ) -> ArticleOut:
     """Update an article, snapshotting the prior state to ArticleHistory first."""
-    user = await _get_user(request, db)
+    user = await get_current_user(request, db)
     article = await _fetch(identifier, db)
 
     if not _can_edit(user, article):
@@ -270,7 +253,7 @@ async def update_article(
 async def view_article_html(request: Request, identifier: str, db: DB) -> Response:
     """Render an article as an HTML page."""
     article = _to_out(await _fetch(identifier, db))
-    user = await _get_user_opt(request, db)
+    user = await get_current_user_opt(request, db)
     return _templates.TemplateResponse(
         request=request,
         name="article.html",
@@ -284,7 +267,7 @@ async def delete_article(request: Request, identifier: str, db: DB) -> None:
 
     Only the author or a moderator/admin may do this.
     """
-    user = await _get_user(request, db)
+    user = await get_current_user(request, db)
     article = await _fetch(identifier, db)
 
     if not _can_edit(user, article):
