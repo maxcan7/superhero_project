@@ -1,11 +1,11 @@
 # M6: Search
-Status: not started
+Status: in progress
 
 Postgres full-text search, search UI.
 
 ---
 
-- [ ] **1.** `feat: add tsvector column and full-text search migration`
+- [x] **1.** `feat: add tsvector column and full-text search migration`
   Add tsvector column to articles; Postgres trigger to keep it current on insert/update.
   `alembic/versions/<hash>_fts.py`
 
