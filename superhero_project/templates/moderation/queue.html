@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Moderation Queue — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="queue-layout">
+  <h1>Moderation Queue</h1>
+  {% if not articles %}
+    <p class="empty-state">No articles pending review.</p>
+  {% else %}
+    <table class="queue-table">
+      <thead>
+        <tr>
+          <th>Article</th>
+          <th>Type</th>
+          <th>Author</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for article in articles %}
+        <tr id="row-{{ article.slug }}">
+          <td>
+            <a href="/articles/{{ article.slug }}/view">{{ article.designation or article.slug }}</a>
+          </td>
+          <td>{{ article.article_type }}</td>
+          <td>{{ article.author_name }}</td>
+          <td>{{ article.updated_at.strftime("%Y-%m-%d") }}</td>
+          <td class="action-cell">
+            <button onclick="moderate('{{ article.slug }}', 'approve')">Approve</button>
+            <button onclick="moderate('{{ article.slug }}', 'reject')">Reject</button>
+            <button onclick="moderate('{{ article.slug }}', 'request-changes')">Request Changes</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function moderate(slug, action) {
+  const resp = await fetch(`/moderation/${slug}/${action}`, { method: "POST" });
+  if (resp.ok) {
+    const row = document.getElementById(`row-${slug}`);
+    if (row) row.remove();
+    const tbody = document.querySelector(".queue-table tbody");
+    if (tbody && tbody.rows.length === 0) {
+      const table = document.querySelector(".queue-table");
+      table.replaceWith(Object.assign(document.createElement("p"), {
+        className: "empty-state",
+        textContent: "No articles pending review.",
+      }));
+    }
+  }
+}
+</script>
+{% endblock %}
