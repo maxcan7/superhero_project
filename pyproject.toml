@@ -66,9 +66,14 @@ addopts = "-vv --cov=superhero_project --cov-report=term-missing"
 
 [tool.coverage.run]
 omit = ["superhero_project/db/migrations/*"]
+# coverage.py's default sys.settrace backend loses coroutine frames after an
+# `await` that suspends into a thread-pool executor (e.g. aiosqlite).  The
+# sys.monitoring backend (Python 3.12+) instruments at the interpreter level
+# and correctly follows coroutines through suspension/resumption.
+core = "sysmon"
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 100
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
