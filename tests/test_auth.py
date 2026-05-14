@@ -1,6 +1,7 @@
 """Tests for the GitHub OAuth auth router."""
 
 from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
 import pytest
 from httpx import AsyncClient
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
+from superhero_project.routers.auth import _fetch_github_user
 
 pytestmark = pytest.mark.anyio
 
@@ -55,6 +57,30 @@ async def test_callback_new_user(
     await client.get("/auth/callback?code=x", follow_redirects=False)
     result = await db.execute(select(User).where(User.github_id == 42))
     assert result.scalar_one_or_none() is not None
+
+
+async def test_fetch_github_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_fetch_github_user exchanges a code for a token and returns the GitHub
+    identity."""
+    mock_token = MagicMock()
+    mock_token.json.return_value = {"access_token": "tok"}
+    mock_token.raise_for_status = MagicMock()
+
+    mock_user = MagicMock()
+    mock_user.json.return_value = {"id": 7, "login": "ghuser", "name": "GH User"}
+    mock_user.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_token)
+    mock_client.get = AsyncMock(return_value=mock_user)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    monkeypatch.setattr(
+        "superhero_project.routers.auth.httpx.AsyncClient", lambda: mock_client
+    )
+
+    assert await _fetch_github_user("code") == (7, "ghuser", "GH User")
 
 
 async def test_callback_existing_user_updated(

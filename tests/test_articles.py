@@ -100,27 +100,38 @@ async def test_create_article_invalid_metadata(auth_client: AsyncClient) -> None
 
 # ── Update article ─────────────────────────────────────────────────────────────
 
+_PROFILE_META = {
+    "aliases": ["Updated"],
+    "affiliation": [],
+    "powers": ["speed"],
+    "status": "active",
+    "base_of_operations": None,
+    "first_appearance": None,
+}
 
+
+@pytest.mark.parametrize(
+    ("body", "field", "expected"),
+    [
+        pytest.param({"content": "## Updated"}, "content", "## Updated", id="content"),
+        pytest.param({"tags": ["updated-tag"]}, "tags", ["updated-tag"], id="tags"),
+        pytest.param(
+            {"metadata": _PROFILE_META}, "metadata", _PROFILE_META, id="metadata"
+        ),
+    ],
+)
 async def test_update_article(
-    auth_client: AsyncClient, published_article: Article
+    auth_client: AsyncClient,
+    published_article: Article,
+    body: dict,
+    field: str,
+    expected: object,
 ) -> None:
-    """PUT /articles/{id} by the author updates content and returns the new state."""
-    resp = await auth_client.put(
-        f"/articles/{published_article.slug}", json={"content": "## Updated"}
-    )
+    """PUT /articles/{id} updates content, tags, or metadata and returns the new
+    state."""
+    resp = await auth_client.put(f"/articles/{published_article.slug}", json=body)
     assert resp.status_code == 200
-    assert resp.json()["content"] == "## Updated"
-
-
-async def test_update_article_tags(
-    auth_client: AsyncClient, published_article: Article
-) -> None:
-    """PUT /articles/{id} with a tags list replaces existing tags."""
-    resp = await auth_client.put(
-        f"/articles/{published_article.slug}", json={"tags": ["updated-tag"]}
-    )
-    assert resp.status_code == 200
-    assert resp.json()["tags"] == ["updated-tag"]
+    assert resp.json()[field] == expected
 
 
 # ── Delete article ─────────────────────────────────────────────────────────────
