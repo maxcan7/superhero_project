@@ -1,5 +1,5 @@
 # M5: Community
-Status: in progress
+Status: complete
 
 Voting, comments, contributor profiles, tag browsing.
 
@@ -14,6 +14,6 @@ Voting, comments, contributor profiles, tag browsing.
   Author profile listing published articles; tag index page with article counts.
   `superhero_project/routers/articles.py superhero_project/templates/`
 
-- [ ] **3.** `feat: add article edit history with diff view`
+- [x] **3.** `feat: add article edit history with diff view`
   Write article_history row on each edit; history page shows unified diffs between snapshots.
   `superhero_project/routers/articles.py superhero_project/templates/`

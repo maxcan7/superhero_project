@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% set display_name = article.designation or article.slug %}
+
+{% block title %}History: {{ display_name }} — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="history-layout">
+  <h1>Edit History: <a href="/articles/{{ display_name }}/view">{{ display_name }}</a></h1>
+  {% if history %}
+    {% for entry in history %}
+      <div class="history-entry">
+        <div class="history-meta">
+          <strong>{{ entry.editor_name }}</strong>
+          <span class="history-date">{{ entry.edited_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        </div>
+        {% if entry.content_diff %}
+          <pre class="history-diff">{{ entry.content_diff }}</pre>
+        {% else %}
+          <p class="history-no-diff">No content change.</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-state">No edit history yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

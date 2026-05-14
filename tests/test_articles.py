@@ -1,4 +1,4 @@
-"""Tests for article HTML views, JSON API, and the Markdown render endpoint."""
+"""Tests for article HTML views, JSON API, Markdown rendering, and edit history."""
 
 import pytest
 from httpx import AsyncClient
@@ -252,3 +252,64 @@ async def test_index_with_article(
     resp = await c.get("/")
     assert resp.status_code == 200
     assert expected_text in resp.text
+
+
+# ── Article history ────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+async def edited_article(
+    auth_client: AsyncClient, published_article: Article
+) -> Article:
+    """Published article that has been edited once, creating one history entry."""
+    await auth_client.put(f"/articles/{published_article.slug}", json={"content": "v2"})
+    return published_article
+
+
+@pytest.mark.parametrize(
+    "url_tmpl",
+    [
+        pytest.param("/articles/{slug}/history", id="json"),
+        pytest.param("/articles/{slug}/history/view", id="html"),
+    ],
+)
+async def test_history_not_found(client: AsyncClient, url_tmpl: str) -> None:
+    """Both history endpoints return 404 for a nonexistent article."""
+    assert (await client.get(url_tmpl.format(slug="nonexistent"))).status_code == 404
+
+
+async def test_history_empty(client: AsyncClient, published_article: Article) -> None:
+    """Returns an empty list before any edits have been made."""
+    assert (
+        await client.get(f"/articles/{published_article.slug}/history")
+    ).json() == []
+
+
+async def test_history_records_edits(
+    auth_client: AsyncClient, edited_article: Article
+) -> None:
+    """A second edit produces a second history entry (covers inter-snapshot diff
+    path)."""
+    await auth_client.put(f"/articles/{edited_article.slug}", json={"content": "v3"})
+    assert (
+        len((await auth_client.get(f"/articles/{edited_article.slug}/history")).json())
+        == 2
+    )
+
+
+async def test_history_diff_shows_change(
+    auth_client: AsyncClient, edited_article: Article
+) -> None:
+    """The content diff contains the text introduced by the edit."""
+    history = (await auth_client.get(f"/articles/{edited_article.slug}/history")).json()
+    assert "v2" in history[0]["content_diff"]
+
+
+async def test_history_view_renders(
+    auth_client: AsyncClient, edited_article: Article
+) -> None:
+    """History view page renders the article identifier."""
+    assert (
+        edited_article.slug
+        in (await auth_client.get(f"/articles/{edited_article.slug}/history/view")).text
+    )

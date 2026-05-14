@@ -1,5 +1,6 @@
 """Articles router: CRUD, designation/slug routing, and Markdown rendering."""
 
+import difflib
 import re
 import uuid
 from datetime import datetime
@@ -141,6 +142,53 @@ def _to_out(article: Article) -> ArticleOut:
     )
 
 
+class HistoryEntryOut(BaseModel):
+    """Single history entry with a unified diff of content changes."""
+
+    id: int
+    editor_id: int
+    editor_name: str
+    edited_at: datetime
+    content_diff: str
+
+
+def _content_diff(before: str, after: str) -> str:
+    before_lines = before.splitlines(keepends=True)
+    after_lines = after.splitlines(keepends=True)
+    return "".join(difflib.unified_diff(before_lines, after_lines))
+
+
+async def _build_history(article: Article, db: AsyncSession) -> list[HistoryEntryOut]:
+    """Load history entries for an article and compute per-entry content diffs."""
+    history = (
+        (
+            await db.execute(
+                select(ArticleHistory)
+                .where(ArticleHistory.article_id == article.id)
+                .options(selectinload(ArticleHistory.editor))
+                .order_by(ArticleHistory.edited_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    result = []
+    for i, entry in enumerate(history):
+        after = (
+            history[i + 1].content_snapshot if i + 1 < len(history) else article.content
+        )
+        result.append(
+            HistoryEntryOut(
+                id=entry.id,
+                editor_id=entry.editor_id,
+                editor_name=entry.editor.display_name,
+                edited_at=entry.edited_at,
+                content_diff=_content_diff(entry.content_snapshot, after),
+            )
+        )
+    return result
+
+
 async def _fetch(identifier: str, db: AsyncSession) -> Article:
     """Look up by designation for CAPE-XXXX identifiers, by slug for all others."""
     col = Article.designation if _CAPE_RE.match(identifier) else Article.slug
@@ -255,6 +303,29 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
         request=request,
         name="article.html",
         context={"article": article, "user": user},
+    )
+
+
+@router.get("/{identifier}/history")
+async def get_article_history(identifier: str, db: DB) -> list[HistoryEntryOut]:
+    """Return the edit history for an article, oldest first, each with a content
+    diff."""
+    return await _build_history(await _fetch(identifier, db), db)
+
+
+@router.get("/{identifier}/history/view", response_class=HTMLResponse)
+async def view_article_history(request: Request, identifier: str, db: DB) -> Response:
+    """Render the edit history page with unified diffs for each revision."""
+    user = await get_current_user_opt(request, db)
+    article = await _fetch(identifier, db)
+    return _templates.TemplateResponse(
+        request=request,
+        name="history.html",
+        context={
+            "article": _to_out(article),
+            "history": await _build_history(article, db),
+            "user": user,
+        },
     )
 
 
