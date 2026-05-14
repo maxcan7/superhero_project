@@ -136,6 +136,94 @@ async def other_auth_client(
 
 
 @pytest.fixture
+async def moderator(db: AsyncSession) -> User:
+    """A persisted moderator user."""
+    u = User(
+        github_id=3,
+        github_username="moduser",
+        display_name="Mod User",
+        role=UserRole.moderator,
+    )
+    db.add(u)
+    await db.commit()
+    await db.refresh(u)
+    return u
+
+
+@pytest.fixture
+async def mod_auth_client(
+    db: AsyncSession, moderator: User
+) -> AsyncGenerator[AsyncClient, None]:
+    """AsyncClient with a valid session cookie for the moderator user."""
+    app = create_app()
+
+    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield db
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    cookie = make_session_cookie(
+        {"user_id": moderator.id, "role": moderator.role.value}, settings.session_secret
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        cookies={"session": cookie},
+    ) as ac:
+        yield ac
+
+
+@pytest.fixture
+async def draft_article(db: AsyncSession, user: User) -> Article:
+    """A draft profile article."""
+    article = Article(
+        slug="CAPE-0002",
+        designation="CAPE-0002",
+        article_type=ArticleType.profile,
+        metadata_={
+            "aliases": [],
+            "affiliation": [],
+            "powers": [],
+            "status": "active",
+            "base_of_operations": None,
+            "first_appearance": None,
+        },
+        content="# Draft Hero",
+        author_id=user.id,
+        status=ArticleStatus.draft,
+    )
+    db.add(article)
+    await db.commit()
+    await db.refresh(article)
+    return article
+
+
+@pytest.fixture
+async def pending_article(db: AsyncSession, user: User) -> Article:
+    """A pending profile article awaiting moderation."""
+    article = Article(
+        slug="CAPE-0003",
+        designation="CAPE-0003",
+        article_type=ArticleType.profile,
+        metadata_={
+            "aliases": [],
+            "affiliation": [],
+            "powers": [],
+            "status": "active",
+            "base_of_operations": None,
+            "first_appearance": None,
+        },
+        content="# Pending Hero",
+        author_id=user.id,
+        status=ArticleStatus.pending,
+    )
+    db.add(article)
+    await db.commit()
+    await db.refresh(article)
+    return article
+
+
+@pytest.fixture
 async def published_article(db: AsyncSession, user: User) -> Article:
     """A published profile article with minimal valid metadata and one tag."""
     article = Article(
