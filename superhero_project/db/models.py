@@ -4,24 +4,22 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON
 from sqlalchemy import BigInteger
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
-# SQLite only auto-increments INTEGER PRIMARY KEY (rowid alias), not BIGINT.
-_BigPK = BigInteger().with_variant(Integer(), "sqlite")
+_BigPK = BigInteger()
 
 
 class Base(DeclarativeBase):
@@ -94,7 +92,7 @@ class Article(Base):
     schema_version: Mapped[int] = mapped_column(nullable=False, default=1)
     # "metadata" shadows DeclarativeBase.metadata, so we use metadata_ in Python
     metadata_: Mapped[dict[str, Any]] = mapped_column(
-        "metadata", JSONB().with_variant(JSON(), "sqlite"), nullable=False, default=dict
+        "metadata", JSONB(), nullable=False, default=dict
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
@@ -110,6 +108,7 @@ class Article(Base):
         server_default=func.now(), onupdate=func.now(), nullable=False
     )
     published_at: Mapped[datetime | None] = mapped_column()
+    search_vector: Mapped[Any] = mapped_column(TSVECTOR(), nullable=True)
 
     author: Mapped["User"] = relationship(back_populates="articles")
     tags: Mapped[list["ArticleTag"]] = relationship(
@@ -183,9 +182,7 @@ class ArticleHistory(Base):
     id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), nullable=False)
     editor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    metadata_snapshot: Mapped[dict[str, Any]] = mapped_column(
-        JSONB().with_variant(JSON(), "sqlite"), nullable=False
-    )
+    metadata_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB(), nullable=False)
     content_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     edited_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), nullable=False

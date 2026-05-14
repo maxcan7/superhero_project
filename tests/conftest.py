@@ -1,11 +1,13 @@
 """Shared pytest fixtures."""
 
+import getpass
 from collections.abc import AsyncGenerator
 from datetime import datetime
 
 import pytest
 from httpx import ASGITransport
 from httpx import AsyncClient
+from pytest_postgresql import factories
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -23,11 +25,16 @@ from superhero_project.dependencies import get_db
 from superhero_project.main import create_app
 from tests.utils import make_session_cookie
 
+pg_noproc = factories.postgresql_noproc(user=getpass.getuser())
+pg = factories.postgresql("pg_noproc")
+
 
 @pytest.fixture
-async def engine() -> AsyncGenerator[AsyncEngine, None]:
-    """In-memory SQLite engine with schema created fresh per test."""
-    e = create_async_engine("sqlite+aiosqlite:///:memory:")
+async def engine(pg) -> AsyncGenerator[AsyncEngine, None]:
+    """Postgres engine with schema created fresh per test."""
+    info = pg.info
+    url = f"postgresql+asyncpg://{info.user}@{info.host}:{info.port}/{info.dbname}"
+    e = create_async_engine(url)
     async with e.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield e
