@@ -1,15 +1,15 @@
 # M5: Community
-Status: not started
+Status: in progress
 
 Voting, comments, contributor profiles, tag browsing.
 
 ---
 
-- [ ] **1.** `feat: add voting router`
+- [x] **1.** `feat: add voting router`
   Up/downvote endpoint; enforces one vote per user per article via UNIQUE constraint.
   `superhero_project/routers/votes.py`
 
-- [ ] **2.** `feat: add comments router`
+- [x] **2.** `feat: add comments router`
   Create, edit, delete comments; author-only edit/delete; timestamps.
   `superhero_project/routers/comments.py`
 

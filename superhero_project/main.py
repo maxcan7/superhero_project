@@ -24,7 +24,9 @@ from superhero_project.dependencies import get_current_user_opt
 from superhero_project.dependencies import get_db
 from superhero_project.routers import articles
 from superhero_project.routers import auth
+from superhero_project.routers import comments
 from superhero_project.routers import moderation
+from superhero_project.routers import votes
 
 
 class _ArticleListItem(TypedDict):
@@ -71,6 +73,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(articles.router)
     app.include_router(moderation.router)
+    app.include_router(votes.router)
+    app.include_router(comments.router)
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
