@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}#{{ tag }} — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="tags-layout">
+  <h1>#{{ tag }}</h1>
+  {% if articles %}
+    <ul class="article-list">
+      {% for article in articles %}
+        <li class="article-list-item">
+          <a href="/articles/{{ article.designation or article.slug }}/view">
+            {{ article.designation or article.slug }}
+          </a>
+          <span class="article-type-badge">{{ article.article_type }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No published articles with this tag.</p>
+  {% endif %}
+</div>
+{% endblock %}

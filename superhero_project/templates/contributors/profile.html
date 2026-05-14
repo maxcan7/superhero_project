@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.display_name }} — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="contributor-layout">
+  <h1>{{ profile_user.display_name }}</h1>
+  <p class="contributor-username">@{{ profile_user.github_username }}</p>
+
+  <section class="contributor-articles">
+    <h2>Published Articles</h2>
+    {% if articles %}
+      <ul class="article-list">
+        {% for article in articles %}
+          <li class="article-list-item">
+            <a href="/articles/{{ article.designation or article.slug }}/view">
+              {{ article.designation or article.slug }}
+            </a>
+            <span class="article-type-badge">{{ article.article_type }}</span>
+            {% if article.tags %}
+              <span class="tag-list">
+                {% for tag in article.tags %}
+                  <a class="tag" href="/tags/{{ tag }}">{{ tag }}</a>
+                {% endfor %}
+              </span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No published articles yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Tags — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="tags-layout">
+  <h1>Browse by Tag</h1>
+  {% if tags %}
+    <ul class="tag-index-list">
+      {% for item in tags %}
+        <li class="tag-index-item">
+          <a href="/tags/{{ item.tag }}">{{ item.tag }}</a>
+          <span class="tag-count">{{ item.count }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No tags yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
