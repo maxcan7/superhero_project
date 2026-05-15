@@ -54,11 +54,7 @@ _METADATA_SCHEMAS: dict[ArticleType, type[BaseModel]] = {
 
 
 class ArticleCreate(BaseModel):
-    """Request body for article creation.
-
-    `slug` is ignored for profiles; the designation (CAPE-XXXX) is auto-assigned from
-    the DB-allocated id.
-    """
+    """Request body for article creation."""
 
     article_type: ArticleType
     slug: str = ""
@@ -201,19 +197,14 @@ async def render_markdown(body: RenderRequest) -> Response:
     return HTMLResponse(_render(body.content))
 
 
-@router.post("/", status_code=201)
-async def create_article(request: Request, body: ArticleCreate, db: DB) -> ArticleOut:
-    """Create a new article as a draft.
-
-    Profiles are inserted with a UUID tmp slug so the CAPE designation can be derived
-    from the DB-assigned id before the transaction commits.
-    """
-    user = await get_current_user(request, db)
+async def _create_profile(
+    body: ArticleCreate, user: User, db: AsyncSession
+) -> ArticleOut:
+    """Insert a profile with a temp UUID slug, then fix slug/designation from the DB
+    id."""
     validated_meta = _validate_metadata(body.article_type, body.metadata)
-    is_profile = body.article_type == ArticleType.profile
-
     article = Article(
-        slug=f"_tmp_{uuid.uuid4().hex}" if is_profile else body.slug,
+        slug=f"_tmp_{uuid.uuid4().hex}",
         article_type=body.article_type,
         metadata_=validated_meta,
         content=body.content,
@@ -222,17 +213,40 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     )
     db.add(article)
     await db.flush()
-
-    if is_profile:
-        designation = f"CAPE-{article.id:04d}"
-        article.designation = designation
-        article.slug = designation
-
+    designation = f"CAPE-{article.id:04d}"
+    article.designation = designation
+    article.slug = designation
     for tag in body.tags:
         db.add(ArticleTag(article_id=article.id, tag=tag))
-
     await db.commit()
+    result = await db.execute(
+        select(Article)
+        .where(Article.id == article.id)
+        .options(selectinload(Article.tags))
+    )
+    return _to_out(result.scalar_one())
 
+
+@router.post("/", status_code=201)
+async def create_article(request: Request, body: ArticleCreate, db: DB) -> ArticleOut:
+    """Create a new article as a draft."""
+    user = await get_current_user(request, db)
+    if body.article_type == ArticleType.profile:
+        return await _create_profile(body, user, db)
+    validated_meta = _validate_metadata(body.article_type, body.metadata)
+    article = Article(
+        slug=body.slug,
+        article_type=body.article_type,
+        metadata_=validated_meta,
+        content=body.content,
+        author_id=user.id,
+        status=ArticleStatus.draft,
+    )
+    db.add(article)
+    await db.flush()
+    for tag in body.tags:
+        db.add(ArticleTag(article_id=article.id, tag=tag))
+    await db.commit()
     result = await db.execute(
         select(Article)
         .where(Article.id == article.id)

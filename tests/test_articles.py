@@ -67,8 +67,17 @@ async def test_create_article_non_profile(auth_client: AsyncClient) -> None:
     assert data["tags"] == ["history"]
 
 
+@pytest.mark.parametrize(
+    ("tags", "expected_tags"),
+    [
+        pytest.param([], set(), id="no-tags"),
+        pytest.param(["hero", "speedster"], {"hero", "speedster"}, id="with-tags"),
+    ],
+)
 async def test_create_profile_auto_assigns_designation(
     auth_client: AsyncClient,
+    tags: list[str],
+    expected_tags: set[str],
 ) -> None:
     """POST /articles/ with profile type auto-assigns a CAPE designation as slug."""
     resp = await auth_client.post(
@@ -83,12 +92,14 @@ async def test_create_profile_auto_assigns_designation(
                 "base_of_operations": None,
                 "first_appearance": None,
             },
+            "tags": tags,
         },
     )
     assert resp.status_code == 201
     data = resp.json()
     assert data["designation"].startswith("CAPE-")
     assert data["slug"] == data["designation"]
+    assert set(data["tags"]) == expected_tags
 
 
 async def test_create_article_invalid_metadata(auth_client: AsyncClient) -> None:
