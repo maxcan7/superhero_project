@@ -1,7 +1,6 @@
 """Articles router: CRUD, designation/slug routing, and Markdown rendering."""
 
 import difflib
-import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -37,9 +36,9 @@ from superhero_project.domain.lore import LoreMetadata
 from superhero_project.domain.org import OrgMetadata
 from superhero_project.domain.profile import ProfileMetadata
 from superhero_project.domain.tech import TechMetadata
+from superhero_project.routers._utils import fetch_article
 
 _md = MarkdownIt()
-_CAPE_RE = re.compile(r"^CAPE-\d{4,}$")
 _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 router = APIRouter(prefix="/articles", tags=["articles"])
@@ -190,16 +189,6 @@ async def _build_history(article: Article, db: AsyncSession) -> list[HistoryEntr
     return result
 
 
-async def _fetch(identifier: str, db: AsyncSession) -> Article:
-    """Look up by designation for CAPE-XXXX identifiers, by slug for all others."""
-    col = Article.designation if _CAPE_RE.match(identifier) else Article.slug
-    stmt = select(Article).where(col == identifier).options(selectinload(Article.tags))
-    article = (await db.execute(stmt)).scalar_one_or_none()
-    if article is None:
-        raise HTTPException(status_code=404, detail="Article not found")
-    return article
-
-
 class RenderRequest(BaseModel):
     """Request body for the Markdown render helper."""
 
@@ -286,7 +275,7 @@ async def search_articles(request: Request, db: DB, q: str) -> Response:
 @router.get("/{identifier}")
 async def get_article(identifier: str, db: DB) -> ArticleOut:
     """Fetch a single article by designation or slug."""
-    return _to_out(await _fetch(identifier, db))
+    return _to_out(await fetch_article(identifier, db, [selectinload(Article.tags)]))
 
 
 @router.put("/{identifier}")
@@ -295,7 +284,7 @@ async def update_article(
 ) -> ArticleOut:
     """Update an article, snapshotting the prior state to ArticleHistory first."""
     user = await get_current_user(request, db)
-    article = await _fetch(identifier, db)
+    article = await fetch_article(identifier, db, [selectinload(Article.tags)])
 
     if not _can_edit(user, article):
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -329,7 +318,7 @@ async def update_article(
 @router.get("/{identifier}/view", response_class=HTMLResponse)
 async def view_article_html(request: Request, identifier: str, db: DB) -> Response:
     """Render an article as an HTML page."""
-    article = _to_out(await _fetch(identifier, db))
+    article = _to_out(await fetch_article(identifier, db, [selectinload(Article.tags)]))
     user = await get_current_user_opt(request, db)
     return _templates.TemplateResponse(
         request=request,
@@ -342,14 +331,16 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
 async def get_article_history(identifier: str, db: DB) -> list[HistoryEntryOut]:
     """Return the edit history for an article, oldest first, each with a content
     diff."""
-    return await _build_history(await _fetch(identifier, db), db)
+    return await _build_history(
+        await fetch_article(identifier, db, [selectinload(Article.tags)]), db
+    )
 
 
 @router.get("/{identifier}/history/view", response_class=HTMLResponse)
 async def view_article_history(request: Request, identifier: str, db: DB) -> Response:
     """Render the edit history page with unified diffs for each revision."""
     user = await get_current_user_opt(request, db)
-    article = await _fetch(identifier, db)
+    article = await fetch_article(identifier, db, [selectinload(Article.tags)])
     return _templates.TemplateResponse(
         request=request,
         name="history.html",
@@ -368,7 +359,7 @@ async def delete_article(request: Request, identifier: str, db: DB) -> None:
     Only the author or a moderator/admin may do this.
     """
     user = await get_current_user(request, db)
-    article = await _fetch(identifier, db)
+    article = await fetch_article(identifier, db, [selectinload(Article.tags)])
 
     if not _can_edit(user, article):
         raise HTTPException(status_code=403, detail="Forbidden")

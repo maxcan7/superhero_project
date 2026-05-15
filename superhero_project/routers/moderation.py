@@ -1,6 +1,5 @@
 """Moderation router: submission workflow, queue, and status transitions."""
 
-import re
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -24,8 +23,8 @@ from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
+from superhero_project.routers._utils import fetch_article
 
-_CAPE_RE = re.compile(r"^CAPE-\d{4,}$")
 _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 router = APIRouter(prefix="/moderation", tags=["moderation"])
@@ -50,19 +49,6 @@ class QueueItemOut(BaseModel):
 def _require_moderator(user: User) -> None:
     if user.role not in (UserRole.moderator, UserRole.admin):
         raise HTTPException(status_code=403, detail="Forbidden")
-
-
-async def _fetch(identifier: str, db: AsyncSession) -> Article:
-    col = Article.designation if _CAPE_RE.match(identifier) else Article.slug
-    stmt = (
-        select(Article)
-        .where(col == identifier)
-        .options(selectinload(Article.tags), selectinload(Article.author))
-    )
-    article = (await db.execute(stmt)).scalar_one_or_none()
-    if article is None:
-        raise HTTPException(status_code=404, detail="Article not found")
-    return article
 
 
 async def _fetch_by_id(article_id: int, db: AsyncSession) -> Article:
@@ -107,7 +93,9 @@ async def _transition(
     *,
     set_published_at: bool = False,
 ) -> QueueItemOut:
-    article = await _fetch(identifier, db)
+    article = await fetch_article(
+        identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
+    )
     if article.status != ArticleStatus.pending:
         raise HTTPException(status_code=409, detail="Article is not pending")
     article.status = new_status
@@ -141,7 +129,9 @@ async def queue_view(request: Request, db: DB) -> Response:
 async def submit_article(request: Request, identifier: str, db: DB) -> QueueItemOut:
     """Submit a draft article for moderation review (draft → pending)."""
     user = await get_current_user(request, db)
-    article = await _fetch(identifier, db)
+    article = await fetch_article(
+        identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
+    )
     if user.id != article.author_id and user.role not in (
         UserRole.moderator,
         UserRole.admin,
