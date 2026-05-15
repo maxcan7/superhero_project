@@ -126,17 +126,33 @@ async def queue_view(request: Request, db: DB) -> Response:
 
 
 @router.post("/{identifier}/submit")
-async def submit_article(request: Request, identifier: str, db: DB) -> QueueItemOut:
-    """Submit a draft article for moderation review (draft → pending)."""
+async def submit_own_article(request: Request, identifier: str, db: DB) -> QueueItemOut:
+    """Submit the caller's own draft for moderation review (author only, draft →
+    pending)."""
     user = await get_current_user(request, db)
     article = await fetch_article(
         identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
     )
-    if user.id != article.author_id and user.role not in (
-        UserRole.moderator,
-        UserRole.admin,
-    ):
+    if user.id != article.author_id:
         raise HTTPException(status_code=403, detail="Forbidden")
+    if article.status != ArticleStatus.draft:
+        raise HTTPException(status_code=409, detail="Article is not a draft")
+    article.status = ArticleStatus.pending
+    await db.commit()
+    return _to_out(await _fetch_by_id(article.id, db))
+
+
+@router.post("/{identifier}/force-submit")
+async def moderator_submit_article(
+    request: Request, identifier: str, db: DB
+) -> QueueItemOut:
+    """Force-submit any draft for moderation review (moderator/admin only, draft →
+    pending)."""
+    user = await get_current_user(request, db)
+    _require_moderator(user)
+    article = await fetch_article(
+        identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
+    )
     if article.status != ArticleStatus.draft:
         raise HTTPException(status_code=409, detail="Article is not a draft")
     article.status = ArticleStatus.pending

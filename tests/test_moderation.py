@@ -81,7 +81,7 @@ async def test_queue_view_empty_state(mod_auth_client: AsyncClient) -> None:
 
 
 @pytest.fixture
-async def submit_scenario(
+def submit_scenario(
     request: pytest.FixtureRequest,
     client: AsyncClient,
     auth_client: AsyncClient,
@@ -109,14 +109,15 @@ async def submit_scenario(
     [
         pytest.param(("client", "draft_article", 401), id="unauthenticated"),
         pytest.param(("other_auth_client", "draft_article", 403), id="non-author"),
+        pytest.param(("mod_auth_client", "draft_article", 403), id="moderator-blocked"),
         pytest.param(("auth_client", "pending_article", 409), id="non-draft"),
         pytest.param(("auth_client", "draft_article", 200), id="author"),
-        pytest.param(("mod_auth_client", "draft_article", 200), id="moderator"),
     ],
     indirect=True,
 )
 async def test_submit(submit_scenario: tuple[AsyncClient, Article, int]) -> None:
-    """Submit endpoint enforces auth, authorship, and draft-only constraint."""
+    """Submit endpoint is author-only: enforces auth, ownership, and draft-only
+    constraint."""
     ac, article, expected = submit_scenario
     assert (await ac.post(f"/moderation/{article.slug}/submit")).status_code == expected
 
@@ -128,6 +129,25 @@ async def test_submit_transitions_to_pending(
     assert (await auth_client.post(f"/moderation/{draft_article.slug}/submit")).json()[
         "status"
     ] == "pending"
+
+
+@pytest.mark.parametrize(
+    "submit_scenario",
+    [
+        pytest.param(("client", "draft_article", 401), id="unauthenticated"),
+        pytest.param(("auth_client", "draft_article", 403), id="non-moderator"),
+        pytest.param(("mod_auth_client", "pending_article", 409), id="non-draft"),
+        pytest.param(("mod_auth_client", "draft_article", 200), id="moderator"),
+    ],
+    indirect=True,
+)
+async def test_force_submit(submit_scenario: tuple[AsyncClient, Article, int]) -> None:
+    """Force-submit endpoint is moderator-only: enforces auth, role, and draft-only
+    constraint."""
+    ac, article, expected = submit_scenario
+    assert (
+        await ac.post(f"/moderation/{article.slug}/force-submit")
+    ).status_code == expected
 
 
 # ── Moderator transition actions ───────────────────────────────────────────────
