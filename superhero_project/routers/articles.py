@@ -154,9 +154,8 @@ def _content_diff(before: str, after: str) -> str:
     return "".join(difflib.unified_diff(before_lines, after_lines))
 
 
-async def _build_history(article: Article, db: AsyncSession) -> list[HistoryEntryOut]:
-    """Load history entries for an article and compute per-entry content diffs."""
-    history = (
+async def _load_history(article: Article, db: AsyncSession) -> list[ArticleHistory]:
+    return list(
         (
             await db.execute(
                 select(ArticleHistory)
@@ -168,10 +167,15 @@ async def _build_history(article: Article, db: AsyncSession) -> list[HistoryEntr
         .scalars()
         .all()
     )
+
+
+def _compute_diffs(
+    records: list[ArticleHistory], current_content: str
+) -> list[HistoryEntryOut]:
     result = []
-    for i, entry in enumerate(history):
+    for i, entry in enumerate(records):
         after = (
-            history[i + 1].content_snapshot if i + 1 < len(history) else article.content
+            records[i + 1].content_snapshot if i + 1 < len(records) else current_content
         )
         result.append(
             HistoryEntryOut(
@@ -345,9 +349,8 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
 async def get_article_history(identifier: str, db: DB) -> list[HistoryEntryOut]:
     """Return the edit history for an article, oldest first, each with a content
     diff."""
-    return await _build_history(
-        await fetch_article(identifier, db, [selectinload(Article.tags)]), db
-    )
+    article = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    return _compute_diffs(await _load_history(article, db), article.content)
 
 
 @router.get("/{identifier}/history/view", response_class=HTMLResponse)
@@ -360,7 +363,9 @@ async def view_article_history(request: Request, identifier: str, db: DB) -> Res
         name="history.html",
         context={
             "article": _to_out(article),
-            "history": await _build_history(article, db),
+            "history": _compute_diffs(
+                await _load_history(article, db), article.content
+            ),
             "user": user,
         },
     )
