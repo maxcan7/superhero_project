@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Search — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="search-layout">
+
+  <section class="search-form">
+    <h1>Search</h1>
+    <form method="get" action="/articles/search/results">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search articles…" autofocus>
+      <button type="submit">Search</button>
+    </form>
+  </section>
+
+  {% if q %}
+    <section class="search-results">
+      <h2>Results for "{{ q }}"</h2>
+      {% if results %}
+        <ul class="article-list">
+          {% for article in results %}
+            <li class="article-list-item">
+              <a href="/articles/{{ article.designation or article.slug }}/view">
+                {{ article.designation or article.slug }}
+              </a>
+              <span class="article-type-badge">{{ article.article_type }}</span>
+              {% if article.tags %}
+                <span class="tag-list">
+                  {% for tag in article.tags %}
+                    <span class="tag">{{ tag }}</span>
+                  {% endfor %}
+                </span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">No results for "{{ q }}".</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+</div>
+{% endblock %}

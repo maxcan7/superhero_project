@@ -1,7 +1,9 @@
 """Tests for article HTML views, JSON API, Markdown rendering, and edit history."""
 
 import pytest
+import sqlalchemy as sa
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import Article
 
@@ -313,3 +315,61 @@ async def test_history_view_renders(
         edited_article.slug
         in (await auth_client.get(f"/articles/{edited_article.slug}/history/view")).text
     )
+
+
+# ── Search ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+async def indexed_article(db: AsyncSession, published_article: Article) -> Article:
+    """Published article with search_vector populated (trigger not run by
+    create_all)."""
+    await db.execute(
+        sa.update(Article)
+        .where(Article.id == published_article.id)
+        .values(search_vector=sa.func.to_tsvector("english", published_article.content))
+    )
+    await db.commit()
+    return published_article
+
+
+@pytest.mark.parametrize(
+    ("use_auth", "expected_text"),
+    [
+        pytest.param(False, "<form", id="anonymous"),
+        pytest.param(True, "Test User", id="logged-in"),
+    ],
+)
+async def test_search_form(
+    client: AsyncClient,
+    auth_client: AsyncClient,
+    use_auth: bool,
+    expected_text: str,
+) -> None:
+    """GET /articles/search renders the search form; logged-in user sees their name."""
+    c = auth_client if use_auth else client
+    resp = await c.get("/articles/search")
+    assert resp.status_code == 200
+    assert expected_text in resp.text
+
+
+@pytest.mark.parametrize(
+    ("q", "expected_text"),
+    [
+        pytest.param("guardian", "CAPE-0001", id="hit"),
+        pytest.param("xyznotfound", "No results", id="miss"),
+    ],
+)
+async def test_search_results(
+    client: AsyncClient, indexed_article: Article, q: str, expected_text: str
+) -> None:
+    """GET /articles/search/results?q= returns hits or the empty-state message."""
+    resp = await client.get(f"/articles/search/results?q={q}")
+    assert resp.status_code == 200
+    assert expected_text in resp.text
+
+
+async def test_search_results_missing_q(client: AsyncClient) -> None:
+    """GET /articles/search/results without q returns 422."""
+    resp = await client.get("/articles/search/results")
+    assert resp.status_code == 422

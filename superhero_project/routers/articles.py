@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from markdown_it import MarkdownIt
 from pydantic import BaseModel
 from pydantic import ValidationError
+from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -249,6 +250,37 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
         .options(selectinload(Article.tags))
     )
     return _to_out(result.scalar_one())
+
+
+@router.get("/search", response_class=HTMLResponse)
+async def search_form(request: Request, db: DB) -> Response:
+    """Render the search form."""
+    user = await get_current_user_opt(request, db)
+    return _templates.TemplateResponse(
+        request=request, name="search.html", context={"user": user}
+    )
+
+
+@router.get("/search/results", response_class=HTMLResponse)
+async def search_articles(request: Request, db: DB, q: str) -> Response:
+    """Full-text search over published articles, ranked by relevance."""
+    tsquery = func.plainto_tsquery("english", q)
+    stmt = (
+        select(Article)
+        .where(
+            Article.status == ArticleStatus.published,
+            Article.search_vector.op("@@")(tsquery),
+        )
+        .order_by(func.ts_rank(Article.search_vector, tsquery).desc())
+        .options(selectinload(Article.tags))
+    )
+    results = [_to_out(a) for a in (await db.execute(stmt)).scalars().all()]
+    user = await get_current_user_opt(request, db)
+    return _templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={"q": q, "results": results, "user": user},
+    )
 
 
 @router.get("/{identifier}")
