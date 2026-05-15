@@ -1,7 +1,6 @@
 """Community router: tag browsing and contributor profiles."""
 
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter
 from fastapi import HTTPException
@@ -19,21 +18,12 @@ from superhero_project.db.models import ArticleTag
 from superhero_project.db.models import User
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user_opt
+from superhero_project.routers._utils import article_list_item
 
 _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 tags_router = APIRouter(prefix="/tags", tags=["tags"])
 contributors_router = APIRouter(prefix="/contributors", tags=["contributors"])
-
-
-def _list_item(article: Article) -> dict[str, Any]:
-    return {
-        "slug": article.slug,
-        "designation": article.designation,
-        "article_type": article.article_type,
-        "metadata": article.metadata_,
-        "tags": [t.tag for t in article.tags],
-    }
 
 
 # ── Tag browsing ───────────────────────────────────────────────────────────────
@@ -84,7 +74,7 @@ async def tag_detail(request: Request, tag: str, db: DB) -> Response:
         name="tags/detail.html",
         context={
             "tag": tag,
-            "articles": [_list_item(a) for a in articles],
+            "articles": [article_list_item(a) for a in articles],
             "user": user,
         },
     )
@@ -122,7 +112,7 @@ async def contributor_profile(request: Request, username: str, db: DB) -> Respon
         name="contributors/profile.html",
         context={
             "profile_user": profile_user,
-            "articles": [_list_item(a) for a in articles],
+            "articles": [article_list_item(a) for a in articles],
             "user": user,
         },
     )

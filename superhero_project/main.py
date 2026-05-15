@@ -1,8 +1,6 @@
 """FastAPI application factory."""
 
 from pathlib import Path
-from typing import Any
-from typing import TypedDict
 
 from fastapi import Depends
 from fastapi import FastAPI
@@ -19,7 +17,6 @@ from starlette.responses import Response
 from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
-from superhero_project.db.models import ArticleType
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.dependencies import get_db
 from superhero_project.routers import articles
@@ -28,20 +25,13 @@ from superhero_project.routers import comments
 from superhero_project.routers import community
 from superhero_project.routers import moderation
 from superhero_project.routers import votes
-
-
-class _ArticleListItem(TypedDict):
-    slug: str
-    designation: str | None
-    article_type: ArticleType
-    metadata: dict[str, Any]
-    tags: list[str]
-
+from superhero_project.routers._utils import ArticleListItem
+from superhero_project.routers._utils import article_list_item
 
 _templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
-async def _recent_articles(db: AsyncSession) -> list[_ArticleListItem]:
+async def _recent_articles(db: AsyncSession) -> list[ArticleListItem]:
     """Return the 20 most recently updated published articles as template dicts."""
     result = await db.execute(
         select(Article)
@@ -50,16 +40,7 @@ async def _recent_articles(db: AsyncSession) -> list[_ArticleListItem]:
         .order_by(Article.updated_at.desc())
         .limit(20)
     )
-    return [
-        {
-            "slug": a.slug,
-            "designation": a.designation,
-            "article_type": a.article_type,
-            "metadata": a.metadata_,
-            "tags": [t.tag for t in a.tags],
-        }
-        for a in result.scalars()
-    ]
+    return [article_list_item(a) for a in result.scalars()]
 
 
 def create_app() -> FastAPI:
