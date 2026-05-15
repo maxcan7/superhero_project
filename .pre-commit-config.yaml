@@ -9,6 +9,12 @@ repos:
         types: [python]
         args: [--in-place, --wrap-summaries=88, --wrap-descriptions=88]
 
+      - id: check-private-docstrings
+        name: check private docstrings
+        entry: uv run python scripts/check_private_docstrings.py
+        language: system
+        types: [python]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.2
     hooks:
