@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from markdown_it import MarkdownIt
 from pydantic import BaseModel
 from pydantic import ValidationError
+from sqlalchemy import delete
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -325,7 +326,9 @@ async def update_article(
     if body.content is not None:
         article.content = body.content
     if body.tags is not None:
-        article.tags = [ArticleTag(article_id=article.id, tag=tag) for tag in body.tags]
+        await db.execute(delete(ArticleTag).where(ArticleTag.article_id == article.id))
+        db.expire(article, ["tags"])
+        db.add_all([ArticleTag(article_id=article.id, tag=tag) for tag in body.tags])
 
     await db.commit()
 
