@@ -94,6 +94,7 @@ class ArticleOut(BaseModel):
 
 
 def _render(text: str) -> str:
+    """Render a Markdown string to HTML."""
     return str(_md.render(text))
 
 
@@ -149,12 +150,14 @@ class HistoryEntryOut(BaseModel):
 
 
 def _content_diff(before: str, after: str) -> str:
+    """Return a unified diff string between two content snapshots."""
     before_lines = before.splitlines(keepends=True)
     after_lines = after.splitlines(keepends=True)
     return "".join(difflib.unified_diff(before_lines, after_lines))
 
 
 async def _load_history(article: Article, db: AsyncSession) -> list[ArticleHistory]:
+    """Fetch all history records for an article, ordered oldest first."""
     return list(
         (
             await db.execute(
@@ -172,6 +175,7 @@ async def _load_history(article: Article, db: AsyncSession) -> list[ArticleHisto
 def _compute_diffs(
     records: list[ArticleHistory], current_content: str
 ) -> list[HistoryEntryOut]:
+    """Build HistoryEntryOut list by diffing each snapshot against the next."""
     result = []
     for i, entry in enumerate(records):
         after = (

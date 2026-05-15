@@ -38,6 +38,7 @@ class CommentOut(BaseModel):
 
 
 async def _fetch_comment(comment_id: int, article_id: int, db: AsyncSession) -> Comment:
+    """Fetch a comment by ID scoped to an article, raising 404 if not found."""
     stmt = (
         select(Comment)
         .where(Comment.id == comment_id, Comment.article_id == article_id)
@@ -50,11 +51,13 @@ async def _fetch_comment(comment_id: int, article_id: int, db: AsyncSession) -> 
 
 
 def _require_comment_author(user: User, comment: Comment) -> None:
+    """Raise 403 if the user is not the comment's author."""
     if user.id != comment.author_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
 def _to_out(comment: Comment) -> CommentOut:
+    """Map an ORM Comment (author eagerly loaded) to CommentOut."""
     return CommentOut(
         id=comment.id,
         article_id=comment.article_id,

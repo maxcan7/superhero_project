@@ -31,6 +31,7 @@ class VoteSummary(BaseModel):
 
 
 async def _vote_summary(article_id: int, db: AsyncSession) -> VoteSummary:
+    """Compute up/downvote counts and net score for an article."""
     votes = (
         (await db.execute(select(Vote).where(Vote.article_id == article_id)))
         .scalars()
@@ -56,6 +57,7 @@ async def get_votes(identifier: str, db: DB) -> VoteSummary:
 async def _upsert_vote(
     user_id: int, article_id: int, value: int, db: AsyncSession
 ) -> None:
+    """Insert a new vote or update the existing one for this user/article pair."""
     existing = (
         await db.execute(
             select(Vote).where(Vote.article_id == article_id, Vote.user_id == user_id)

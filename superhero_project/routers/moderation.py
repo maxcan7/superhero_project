@@ -47,11 +47,13 @@ class QueueItemOut(BaseModel):
 
 
 def _require_moderator(user: User) -> None:
+    """Raise 403 if the user is not a moderator or admin."""
     if user.role not in (UserRole.moderator, UserRole.admin):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
 async def _fetch_by_id(article_id: int, db: AsyncSession) -> Article:
+    """Fetch an article by primary key with tags and author eagerly loaded."""
     stmt = (
         select(Article)
         .where(Article.id == article_id)
@@ -61,6 +63,7 @@ async def _fetch_by_id(article_id: int, db: AsyncSession) -> Article:
 
 
 def _to_out(article: Article) -> QueueItemOut:
+    """Map an ORM Article (tags and author eagerly loaded) to QueueItemOut."""
     return QueueItemOut(
         id=article.id,
         slug=article.slug,
@@ -77,6 +80,7 @@ def _to_out(article: Article) -> QueueItemOut:
 
 
 async def _pending_articles(db: AsyncSession) -> list[QueueItemOut]:
+    """Return all pending articles ordered by oldest update first."""
     result = await db.execute(
         select(Article)
         .where(Article.status == ArticleStatus.pending)
@@ -93,6 +97,7 @@ async def _transition(
     *,
     set_published_at: bool = False,
 ) -> QueueItemOut:
+    """Transition a pending article to new_status, optionally stamping published_at."""
     article = await fetch_article(
         identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
     )
