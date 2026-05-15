@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from superhero_project.db.models import Comment
+from superhero_project.db.models import User
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.routers._utils import fetch_article
@@ -46,6 +47,11 @@ async def _fetch_comment(comment_id: int, article_id: int, db: AsyncSession) -> 
     if comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
     return comment
+
+
+def _require_comment_author(user: User, comment: Comment) -> None:
+    if user.id != comment.author_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 
 def _to_out(comment: Comment) -> CommentOut:
@@ -97,8 +103,7 @@ async def update_comment(
     user = await get_current_user(request, db)
     article = await fetch_article(identifier, db)
     comment = await _fetch_comment(comment_id, article.id, db)
-    if user.id != comment.author_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    _require_comment_author(user, comment)
     comment.body = body.body
     await db.commit()
     return _to_out(await _fetch_comment(comment.id, article.id, db))
@@ -115,7 +120,6 @@ async def delete_comment(
     user = await get_current_user(request, db)
     article = await fetch_article(identifier, db)
     comment = await _fetch_comment(comment_id, article.id, db)
-    if user.id != comment.author_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    _require_comment_author(user, comment)
     await db.delete(comment)
     await db.commit()
