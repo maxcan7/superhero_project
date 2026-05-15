@@ -53,6 +53,20 @@ async def get_votes(identifier: str, db: DB) -> VoteSummary:
     return await _vote_summary(article.id, db)
 
 
+async def _upsert_vote(
+    user_id: int, article_id: int, value: int, db: AsyncSession
+) -> None:
+    existing = (
+        await db.execute(
+            select(Vote).where(Vote.article_id == article_id, Vote.user_id == user_id)
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        db.add(Vote(article_id=article_id, user_id=user_id, value=value))
+    else:
+        existing.value = value
+
+
 @router.put("/{identifier}")
 async def cast_vote(
     request: Request, identifier: str, body: VoteIn, db: DB
@@ -62,18 +76,7 @@ async def cast_vote(
     if body.value not in (1, -1):
         raise HTTPException(status_code=422, detail="Vote value must be 1 or -1")
     article = await fetch_article(identifier, db)
-
-    existing = (
-        await db.execute(
-            select(Vote).where(Vote.article_id == article.id, Vote.user_id == user.id)
-        )
-    ).scalar_one_or_none()
-
-    if existing is None:
-        db.add(Vote(article_id=article.id, user_id=user.id, value=body.value))
-    else:
-        existing.value = body.value
-
+    await _upsert_vote(user.id, article.id, body.value, db)
     await db.commit()
     return await _vote_summary(article.id, db)
 
