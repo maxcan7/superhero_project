@@ -260,7 +260,7 @@ async def search_form(request: Request, db: DB) -> Response:
     """Render the search form."""
     user = await get_current_user_opt(request, db)
     return _templates.TemplateResponse(
-        request=request, name="search.html", context={"user": user}
+        request=request, name="search.html", context={"user": user, "results": None}
     )
 
 

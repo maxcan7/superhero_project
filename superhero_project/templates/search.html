@@ -13,7 +13,7 @@
     </form>
   </section>
 
-  {% if q %}
+  {% if results is not none %}
     <section class="search-results">
       <h2>Results for "{{ q }}"</h2>
       {% if results %}
