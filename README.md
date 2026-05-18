@@ -9,11 +9,18 @@ Built with FastAPI, SQLAlchemy, Jinja2, GitHub OAuth, and PostgreSQL. Self-hoste
 Requires [devenv](https://devenv.sh).
 
 ```sh
-devenv up    # starts PostgreSQL on 127.0.0.1:5432
-devenv shell # enters the dev shell with Python + uv
+devenv up    # starts PostgreSQL (background — see DEV.md)
+devenv shell # dev shell for running commands
 ```
 
-The `DATABASE_URL` environment variable is set automatically inside the shell.
+See [DEV.md](DEV.md) for the full setup walkthrough, GitHub OAuth app registration,
+user promotion, manual test flows, and smoke test instructions.
+
+### Tests
+
+```sh
+uv run pytest
+```
 
 ## Spec
 
