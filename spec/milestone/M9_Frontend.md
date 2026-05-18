@@ -31,9 +31,10 @@ the backend; the frontend calls existing API/HTML endpoints.
 - [ ] **5.** `feat(editor): add article create and edit pages`
   Adds `GET /articles/new` and `GET /articles/{id}/edit` endpoints serving an editor
   form. Type selector shows/hides per-type metadata fields; live Markdown preview
-  calls `/articles/render`; form submits JSON to the existing create/update endpoints
-  and redirects to the article view on success.
-  `superhero_project/routers/articles.py superhero_project/templates/editor.html superhero_project/static/js/editor.js superhero_project/static/css/main.css`
+  calls `/articles/render` (wired via `preview.ts`); form submits JSON to the existing
+  create/update endpoints and redirects to the article view on success. Add
+  `editor.ts` to the esbuild inputs in `devenv.nix` and `scripts/build_js.sh`.
+  `superhero_project/routers/articles.py superhero_project/templates/editor.html superhero_project/static/ts/editor.ts superhero_project/static/css/main.css devenv.nix scripts/build_js.sh`
 
 - [ ] **6.** `feat(me): add my articles page`
   Adds `GET /me/articles` listing all of the current user's articles across all
