@@ -7,8 +7,8 @@ Manual testing guide for running the app end-to-end in a browser.
 Everything can run in the background from a single `devenv shell` terminal:
 
 ```sh
-devenv shell
-devenv up -d                                            # start PostgreSQL (detached)
+devenv shell                                            # enter dev env; runs initial JS build
+devenv up -d                                            # start PostgreSQL + esbuild watch (detached)
 uv run uvicorn superhero_project.main:app --reload &    # start app
 ```
 

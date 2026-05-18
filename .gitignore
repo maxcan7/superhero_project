@@ -27,3 +27,6 @@ htmlcov/
 # Editor
 .DS_Store
 .vscode/
+
+# Compiled frontend — source lives in static/ts/
+superhero_project/static/js/
