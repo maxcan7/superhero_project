@@ -1,6 +1,6 @@
 # Superhero Universe Wiki — Spec
 
-Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md) · [M8](../milestone/M8_Packaging.md) · [M9](../milestone/M9_Frontend.md)
+Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md) · [M8](../milestone/M8_Packaging.md) · [M9](../milestone/M9_Frontend.md) · [M10](../milestone/M10_LinkGraph.md) · [M11](../milestone/M11_InfoboxesAndDerivedViews.md)
 
 ---
 
@@ -35,7 +35,7 @@ Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.
 
 ## Content Model
 
-Six article types, each with a strict template. All articles have a YAML frontmatter block with required metadata fields (exact fields TBD per type) and a `schema_version` field, followed by freeform Markdown narrative sections.
+Seven article types, each with a strict template. All articles have a YAML frontmatter block with required metadata fields (exact fields TBD per type) and a `schema_version` field, followed by freeform Markdown narrative sections.
 
 ### 1. Profile (`profile/`)
 
@@ -60,6 +60,10 @@ Gear, serums, relics.
 ### 6. Lore (`lore/`)
 
 World-building entries: power classification systems, historical events, in-universe laws. No single author — community-maintained.
+
+### 7. Disambiguation (`disambiguation/`)
+
+Named lists of articles that share an alias. When `[[Mercury]]` is ambiguous, it resolves to a disambiguation page rather than failing. Authored and managed by moderators; excluded from article feeds but searchable.
 
 ---
 
@@ -116,6 +120,13 @@ article_history (
   content_snapshot TEXT,
   edited_at
 )
+
+article_links (
+  id, source_id REFERENCES articles(id),
+  target_id REFERENCES articles(id),
+  field_name VARCHAR,   -- NULL = wikilink body; named = metadata edge (e.g. "affiliation")
+  resolved_via VARCHAR  -- the alias string that resolved to target_id
+)
 ```
 
 ---
@@ -156,6 +167,12 @@ Roles:
 - Full-text search via Postgres `tsvector`
 - Tag browsing with article counts
 - Contributor profiles listing authored articles
+- Wikilinks (`[[Entity Name]]`) in article bodies resolve to linked articles; unresolved links render as red stubs pre-filled for creation
+- Article link graph: "References" and "Referenced by" panels derived from wikilinks and metadata edges
+- Disambiguation pages for shared aliases
+- Per-type infoboxes rendering structured metadata (status chips, linked lists, text badges)
+- Derived views: org member roster, location event history and residents
+- Metadata filters in search (`?type=`, `?status=`, `?powers=`, etc.)
 
 ---
 
@@ -176,6 +193,8 @@ superhero_project/
     location.py
     tech.py
     lore.py
+    disambiguation.py
+    links.py
   routers/
     _utils.py
     articles.py
@@ -192,6 +211,13 @@ superhero_project/
     editor.html
     history.html
     search.html
+    infobox/
+      profile.html
+      event.html
+      org.html
+      location.html
+      tech.html
+      lore.html
     contributors/
       profile.html
     me/
@@ -269,3 +295,5 @@ At meaningful scale, move Postgres to a managed instance and upgrade the VPS.
 | [M7: Content](../milestone/M7_Content.md) | Style guide, canon rules, seed articles to establish tone and demonstrate wiki-diving |
 | [M8: Packaging](../milestone/M8_Packaging.md) | uv2nix build, NixOS module wiring, end-to-end deployment verification |
 | [M9: Frontend](../milestone/M9_Frontend.md) | Nav, article actions, vote/comment UI, editor, my-articles page, TypeScript toolchain |
+| [M10: Link Graph](../milestone/M10_LinkGraph.md) | Wikilinks, alias index, metadata edge extraction, reference panels, disambiguation pages |
+| [M11: Infoboxes & Derived Views](../milestone/M11_InfoboxesAndDerivedViews.md) | Per-type infobox templates, org member roster, location activity view, metadata search filters |
