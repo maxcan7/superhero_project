@@ -18,6 +18,7 @@ class OrgType(StrEnum):
     agency = "agency"
     corporation = "corporation"
     cult = "cult"
+    publisher = "publisher"
     other = "other"
 
 

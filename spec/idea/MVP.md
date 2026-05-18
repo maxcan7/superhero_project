@@ -1,6 +1,6 @@
 # Superhero Universe Wiki — Spec
 
-Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md) · [M8](../milestone/M8_Packaging.md) · [M9](../milestone/M9_Frontend.md) · [M10](../milestone/M10_LinkGraph.md) · [M11](../milestone/M11_InfoboxesAndDerivedViews.md)
+Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md) · [M8](../milestone/M8_Packaging.md) · [M9](../milestone/M9_Frontend.md) · [M10](../milestone/M10_LinkGraph.md) · [M11](../milestone/M11_InfoboxesAndDerivedViews.md) · [C4](../cleanup/C4_ComicType.md)
 
 ---
 
@@ -35,7 +35,11 @@ Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.
 
 ## Content Model
 
-Seven article types, each with a strict template. All articles have a YAML frontmatter block with required metadata fields (exact fields TBD per type) and a `schema_version` field, followed by freeform Markdown narrative sections.
+The wiki covers two layers simultaneously, like Wikipedia's treatment of comics: **in-universe** content (what happens within the fiction) and **meta** content (the real-world publication context of the fiction). Neither layer is secondary. A wiki about a superhero should cover both the character's biography and the history of the comics that tell it.
+
+Eight article types, each with a strict template. All articles have a YAML frontmatter block with required metadata fields and a `schema_version` field, followed by freeform Markdown narrative sections.
+
+### In-universe types
 
 ### 1. Profile (`profile/`)
 
@@ -47,7 +51,7 @@ Articles covering battles, disasters, first appearances, turning points. The con
 
 ### 3. Organization (`org/`)
 
-Teams, agencies, corporations, cults.
+Teams, agencies, corporations, cults — and publishing organizations (`org_type: publisher`). Publisher orgs are the bridge between the in-universe and meta layers; they are real-world entities within the fiction rather than in-universe organizations the characters interact with directly.
 
 ### 4. Location (`location/`)
 
@@ -59,9 +63,15 @@ Gear, serums, relics.
 
 ### 6. Lore (`lore/`)
 
-World-building entries: power classification systems, historical events, in-universe laws. No single author — community-maintained.
+In-universe world-building entries: power classification systems, historical events, in-universe laws. No single author — community-maintained.
 
-### 7. Disambiguation (`disambiguation/`)
+### Meta types
+
+### 7. Comic (`comic/`)
+
+A comic series or property, covering all publisher runs. The meta counterpart to a profile: where the profile covers who Mercury Maimonides is, the comic article covers the history of the Rebis Bondi series that tells her story. Metadata: publishers (linked list), first/last issue, status, comic type.
+
+### 8. Disambiguation (`disambiguation/`)
 
 Named lists of articles that share an alias. When `[[Mercury]]` is ambiguous, it resolves to a disambiguation page rather than failing. Authored and managed by moderators; excluded from article feeds but searchable.
 
