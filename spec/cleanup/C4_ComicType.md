@@ -71,7 +71,7 @@ status       → colored chip: ongoing=green, completed=grey, cancelled=red, unk
   ```
   `superhero_project/domain/org.py alembic/versions/<hash>_add_publisher_org_type.py`
 
-- [ ] **2.** `feat: add comic article type`
+- [x] **2.** `feat: add comic article type`
   New `domain/comic.py` with `ComicType`, `ComicStatus`, and `ComicMetadata`. Add `comic`
   to `ArticleType` in `db/models.py`. Register `ComicMetadata` in `_METADATA_SCHEMAS` in
   `routers/articles.py`. Alembic migration:

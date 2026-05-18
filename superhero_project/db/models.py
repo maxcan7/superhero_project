@@ -43,6 +43,8 @@ class ArticleType(StrEnum):
     location = "location"
     tech = "tech"
     lore = "lore"
+    comic = "comic"
+    disambiguation = "disambiguation"
 
 
 class ArticleStatus(StrEnum):

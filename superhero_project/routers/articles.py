@@ -27,6 +27,7 @@ from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
+from superhero_project.domain.comic import ComicMetadata
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.location import LocationMetadata
 from superhero_project.domain.lore import LoreMetadata
@@ -46,6 +47,7 @@ _METADATA_SCHEMAS: dict[ArticleType, type[BaseModel]] = {
     ArticleType.location: LocationMetadata,
     ArticleType.tech: TechMetadata,
     ArticleType.lore: LoreMetadata,
+    ArticleType.comic: ComicMetadata,
 }
 
 
