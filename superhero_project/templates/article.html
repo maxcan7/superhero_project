@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% set display_name = article.designation or article.slug %}
+{% set identifier = article.designation or article.slug %}
 
-{% block title %}{{ display_name }} — Superhero Wiki{% endblock %}
+{% block title %}{{ identifier }} — Superhero Wiki{% endblock %}
 
 {% block content %}
 <div class="article-layout">
@@ -33,7 +33,7 @@
     {% if article.tags %}
       <div class="tag-list">
         {% for tag in article.tags %}
-          <span class="tag">{{ tag }}</span>
+          <a href="/tags/{{ tag }}" class="tag">{{ tag }}</a>
         {% endfor %}
       </div>
     {% endif %}
@@ -44,6 +44,16 @@
         <br><small>Published: {{ article.published_at.strftime("%Y-%m-%d") }}</small>
       {% endif %}
     </div>
+
+    <div class="article-actions">
+      <a href="/articles/{{ identifier }}/history/view" class="btn btn-ghost">History</a>
+      {% if can_edit %}
+        <a href="/articles/{{ identifier }}/edit" class="btn btn-secondary">Edit</a>
+      {% endif %}
+      {% if is_author and article.status == 'draft' %}
+        <button id="submit-review-btn" class="btn btn-primary">Submit for Review</button>
+      {% endif %}
+    </div>
   </aside>
 
   <article class="article-body">
@@ -51,4 +61,20 @@
   </article>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if is_author and article.status == 'draft' %}
+<script>
+document.getElementById('submit-review-btn').addEventListener('click', async function () {
+  this.disabled = true;
+  const resp = await fetch('/moderation/{{ identifier }}/submit', { method: 'POST' });
+  if (resp.ok) {
+    this.textContent = 'Submitted for Review';
+  } else {
+    this.disabled = false;
+  }
+});
+</script>
+{% endif %}
 {% endblock %}

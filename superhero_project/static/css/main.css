@@ -270,6 +270,57 @@ a:hover { color: var(--color-accent-dark); text-decoration: underline; }
 
 .preview-pane.loading { color: var(--color-muted); font-style: italic; }
 
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+.btn:hover { text-decoration: none; }
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+.btn-primary:hover { background: var(--color-accent-dark); border-color: var(--color-accent-dark); color: #fff; }
+
+.btn-secondary {
+  background: var(--color-badge-bg);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn-secondary:hover { background: var(--color-border); color: var(--color-text); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-muted);
+  border-color: var(--color-border);
+}
+
+.btn-ghost:hover { background: var(--color-badge-bg); color: var(--color-text); }
+
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Article actions ────────────────────────────────────────────────────────── */
+.article-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .article-layout {

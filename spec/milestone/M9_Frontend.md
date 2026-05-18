@@ -16,7 +16,7 @@ the backend; the frontend calls existing API/HTML endpoints.
   base nav. New Article and My Articles are auth-gated; Mod Queue is mod/admin only.
   `superhero_project/templates/base.html superhero_project/static/css/main.css`
 
-- [ ] **3.** `feat(article): add edit, history, and submit-for-review actions`
+- [x] **3.** `feat(article): add edit, history, and submit-for-review actions`
   View endpoint passes `can_edit` and `is_author` flags. Article page gains Edit and
   History links (always visible) and a Submit for Review button (draft author only)
   that POSTs to `/moderation/{id}/submit` via fetch.

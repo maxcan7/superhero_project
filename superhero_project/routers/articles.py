@@ -343,12 +343,20 @@ async def update_article(
 @router.get("/{identifier}/view", response_class=HTMLResponse)
 async def view_article_html(request: Request, identifier: str, db: DB) -> Response:
     """Render an article as an HTML page."""
-    article = _to_out(await fetch_article(identifier, db, [selectinload(Article.tags)]))
     user = await get_current_user_opt(request, db)
+    article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    article = _to_out(article_db)
+    can_edit = user is not None and _can_edit(user, article_db)
+    is_author = user is not None and user.id == article_db.author_id
     return _templates.TemplateResponse(
         request=request,
         name="article.html",
-        context={"article": article, "user": user},
+        context={
+            "article": article,
+            "user": user,
+            "can_edit": can_edit,
+            "is_author": is_author,
+        },
     )
 
 
