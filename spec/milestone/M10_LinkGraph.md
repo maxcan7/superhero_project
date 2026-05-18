@@ -68,7 +68,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
   `resolved_via` stores the exact alias string used to resolve the edge (e.g. `"tony stark"`). When an alias is removed from an article, edges where `resolved_via` matches the removed alias can be deleted directly without re-parsing all referencing articles. The UNIQUE constraint on `(source_id, target_id, field_name)` means a profile can be linked to an org both by a wikilink (field_name NULL) and by an `affiliation` metadata edge — two distinct, meaningful edges.
   `alembic/versions/<hash>_article_links.py`
 
-- [ ] **2.** `feat: add alias index`
+- [x] **2.** `feat: add alias index`
   A flat dict mapping normalized strings to article IDs, built from all published articles. "Normalized" means lowercased and whitespace-stripped.
 
   Sources per type:
@@ -110,6 +110,8 @@ The alias index is the shared lookup that makes both passes work. It maps every 
 
 - [ ] **4.** `feat: add metadata edge extractor`
   Walks the domain metadata fields that carry relationship values and writes typed edges using the same alias index.
+
+  Also refactor the per-type alias extraction in `build_alias_index` (Task 2) and the new metadata edge extraction into a shared per-type handler registry in `links.py`, so both passes use the same extension point.
 
   Field mapping:
   ```

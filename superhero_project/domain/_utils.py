@@ -5,9 +5,13 @@ from typing import Annotated
 from pydantic import BeforeValidator
 
 
+def normalize_str(s: str) -> str:
+    return s.strip().lower()
+
+
 def _normalize_str_list(v: list[str]) -> list[str]:
     """Lowercase and strip each string, dropping blanks."""
-    return [s.strip().lower() for s in v if s.strip()]
+    return [normalize_str(s) for s in v if s.strip()]
 
 
 NormalizedStrList = Annotated[list[str], BeforeValidator(_normalize_str_list)]
