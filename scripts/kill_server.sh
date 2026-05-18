@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kill dev services.
+# Stop dev services.
 # Usage: kill_server.sh [app|db]   (default: both)
 
 _kill_port() {
@@ -13,13 +13,17 @@ _kill_port() {
     fi
 }
 
+_stop_db() {
+    devenv processes down && echo "stopped postgres" || echo "postgres not running"
+}
+
 case "${1:-all}" in
     all)
         _kill_port 8000 uvicorn
-        _kill_port 5433 postgres
+        _stop_db
         ;;
     db)
-        _kill_port 5433 postgres
+        _stop_db
         ;;
     app)
         _kill_port 8000 uvicorn
