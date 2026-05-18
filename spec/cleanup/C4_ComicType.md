@@ -1,5 +1,5 @@
 # C4: Comic Article Type and Publisher Org Type
-Status: in-progress
+Status: complete
 
 Retroactively adds the meta layer to the content model. The wiki covers both in-universe
 content (character biographies, events, organizations, locations, tech, lore) and the
@@ -85,12 +85,6 @@ status       → colored chip: ongoing=green, completed=grey, cancelled=red, unk
   edge extractor field mapping table in M10.
   `spec/milestone/M10_LinkGraph.md`
 
-- [ ] **4.** `docs: update M11 infobox spec for comic`
+- [x] **4.** `docs: update M11 infobox spec for comic`
   Add comic infobox rendering rules (see above) to M11.
   `spec/milestone/M11_InfoboxesAndDerivedViews.md`
-
-- [ ] **5.** `docs: update MVP.md content model`
-  Update article type count (six → eight, counting `disambiguation` from M10), add `comic`
-  and `publisher` org type to the content model section, add a note on the meta vs.
-  in-universe distinction.
-  `spec/idea/MVP.md`

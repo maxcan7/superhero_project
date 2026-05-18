@@ -79,6 +79,13 @@ M10 established the edge table. M11 is the surface area that makes it visible an
   Lore:
     category           → chip
     related_articles   → linked list
+
+  Comic:
+    comic_type         → chip
+    publishers         → linked list (via alias index; plain text if unresolved)
+    first_issue        → plain text
+    last_issue         → plain text
+    status             → colored chip: ongoing=green, completed=grey, cancelled=red, unknown=grey
   ```
 
   "Linked list" means each value is resolved via M10's alias index at render time — if a slug is found, render as `<a href>`, otherwise as plain text. Fields with no value set render as "—" or are omitted entirely.
