@@ -66,6 +66,7 @@ testpaths = ["tests"]
 env_files = [".env.test"]
 addopts = "-vv --cov=superhero_project --cov-report=term-missing"
 postgresql_host = "127.0.0.1"
+postgresql_port = 5433  # must match pgPort in devenv.nix
 
 [tool.coverage.run]
 omit = ["superhero_project/db/migrations/*"]
