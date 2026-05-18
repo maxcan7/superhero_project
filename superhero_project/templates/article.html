@@ -5,7 +5,7 @@
 {% block title %}{{ identifier }} — Superhero Wiki{% endblock %}
 
 {% block content %}
-<div class="article-layout">
+<div class="article-layout" id="article-root" data-identifier="{{ identifier }}">
 
   <aside class="metadata-sidebar">
     <div class="article-type-badge">{{ article.article_type }}</div>
@@ -56,9 +56,58 @@
     </div>
   </aside>
 
-  <article class="article-body">
-    {{ article.rendered_body | safe }}
-  </article>
+  <div class="article-column">
+    <article class="article-body">
+      {{ article.rendered_body | safe }}
+    </article>
+
+    <div class="vote-bar"
+         data-user-vote="{{ user_vote if user_vote is not none else '' }}">
+      <button id="vote-up"
+              class="btn vote-btn{% if user_vote == 1 %} vote-btn--active{% endif %}"
+              {% if not user %}disabled{% endif %}>
+        ▲ {{ vote_upvotes }}
+      </button>
+      <span id="vote-score"
+            data-upvotes="{{ vote_upvotes }}"
+            data-downvotes="{{ vote_downvotes }}">{{ vote_score }}</span>
+      <button id="vote-down"
+              class="btn vote-btn{% if user_vote == -1 %} vote-btn--active{% endif %}"
+              {% if not user %}disabled{% endif %}>
+        ▽ {{ vote_downvotes }}
+      </button>
+    </div>
+
+    <section class="comments-section">
+      <h3 class="comments-heading">Comments ({{ comments | length }})</h3>
+      <ul id="comment-list" class="comment-list">
+        {% for c in comments %}
+        <li class="comment" data-id="{{ c.id }}">
+          <div class="comment-header">
+            <span class="comment-author">{{ c.author_name }}</span>
+            <span class="comment-date">{{ c.created_at.strftime("%Y-%m-%d") }}</span>
+          </div>
+          <div class="comment-body">{{ c.body }}</div>
+          {% if user and user.id == c.author_id %}
+          <div class="comment-actions">
+            <button class="btn btn-ghost comment-edit-btn" data-id="{{ c.id }}">Edit</button>
+            <button class="btn btn-ghost comment-delete-btn" data-id="{{ c.id }}">Delete</button>
+          </div>
+          {% endif %}
+        </li>
+        {% else %}
+        <li id="comment-empty" class="comment-empty">No comments yet.</li>
+        {% endfor %}
+      </ul>
+
+      {% if user %}
+      <form id="comment-form" class="comment-form">
+        <textarea class="comment-textarea" placeholder="Add a comment…" required></textarea>
+        <button type="submit" class="btn btn-primary">Post</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
 
 </div>
 {% endblock %}
@@ -77,4 +126,5 @@ document.getElementById('submit-review-btn').addEventListener('click', async fun
 });
 </script>
 {% endif %}
+<script src="/static/js/article.js"></script>
 {% endblock %}

@@ -22,7 +22,7 @@ the backend; the frontend calls existing API/HTML endpoints.
   that POSTs to `/moderation/{id}/submit` via fetch.
   `superhero_project/routers/articles.py superhero_project/templates/article.html superhero_project/static/css/main.css`
 
-- [ ] **4.** `feat(article): add vote bar and comments section`
+- [x] **4.** `feat(article): add vote bar and comments section`
   View endpoint loads and passes vote summary and comments. Article page renders
   upvote/downvote buttons and a comment list with add/edit/delete; thin JS calls
   the existing `/votes` and `/comments` endpoints.

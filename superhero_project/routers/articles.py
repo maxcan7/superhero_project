@@ -26,8 +26,10 @@ from superhero_project.db.models import ArticleHistory
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleTag
 from superhero_project.db.models import ArticleType
+from superhero_project.db.models import Comment
 from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
+from superhero_project.db.models import Vote
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
@@ -155,6 +157,56 @@ def _content_diff(before: str, after: str) -> str:
     before_lines = before.splitlines(keepends=True)
     after_lines = after.splitlines(keepends=True)
     return "".join(difflib.unified_diff(before_lines, after_lines))
+
+
+async def _load_vote_context(
+    article_id: int, user: User | None, db: AsyncSession
+) -> tuple[int, int, int, int | None]:
+    """Return (upvotes, downvotes, score, user_vote) for an article."""
+    all_votes = (
+        (await db.execute(select(Vote).where(Vote.article_id == article_id)))
+        .scalars()
+        .all()
+    )
+    upvotes = sum(1 for v in all_votes if v.value > 0)
+    downvotes = sum(1 for v in all_votes if v.value < 0)
+    user_vote: int | None = None
+    if user is not None:
+        uv = (
+            await db.execute(
+                select(Vote).where(
+                    Vote.article_id == article_id, Vote.user_id == user.id
+                )
+            )
+        ).scalar_one_or_none()
+        user_vote = uv.value if uv else None
+    return upvotes, downvotes, upvotes - downvotes, user_vote
+
+
+async def _load_comments(article_id: int, db: AsyncSession) -> list[dict[str, object]]:
+    """Return comment dicts for an article, oldest first."""
+    rows = (
+        (
+            await db.execute(
+                select(Comment)
+                .where(Comment.article_id == article_id)
+                .options(selectinload(Comment.author))
+                .order_by(Comment.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "id": c.id,
+            "author_id": c.author_id,
+            "author_name": c.author.display_name,
+            "body": c.body,
+            "created_at": c.created_at,
+        }
+        for c in rows
+    ]
 
 
 async def _load_history(article: Article, db: AsyncSession) -> list[ArticleHistory]:
@@ -346,16 +398,22 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
     user = await get_current_user_opt(request, db)
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
     article = _to_out(article_db)
-    can_edit = user is not None and _can_edit(user, article_db)
-    is_author = user is not None and user.id == article_db.author_id
+    vote_upvotes, vote_downvotes, vote_score, user_vote = await _load_vote_context(
+        article_db.id, user, db
+    )
     return _templates.TemplateResponse(
         request=request,
         name="article.html",
         context={
             "article": article,
             "user": user,
-            "can_edit": can_edit,
-            "is_author": is_author,
+            "can_edit": user is not None and _can_edit(user, article_db),
+            "is_author": user is not None and user.id == article_db.author_id,
+            "vote_upvotes": vote_upvotes,
+            "vote_downvotes": vote_downvotes,
+            "vote_score": vote_score,
+            "user_vote": user_vote,
+            "comments": await _load_comments(article_db.id, db),
         },
     )
 

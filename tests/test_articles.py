@@ -6,6 +6,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import Article
+from superhero_project.db.models import Comment
+from superhero_project.db.models import User
+from superhero_project.db.models import Vote
 
 pytestmark = pytest.mark.anyio
 
@@ -210,10 +213,10 @@ async def test_write_route_forbidden_for_non_author(
 
 
 @pytest.mark.parametrize(
-    ("use_auth", "expected_text"),
+    ("use_auth", "expected_texts"),
     [
-        pytest.param(False, "<h1>", id="anonymous"),
-        pytest.param(True, "Test User", id="logged-in"),
+        pytest.param(False, ["<h1>", "vote-bar", "No comments yet"], id="anonymous"),
+        pytest.param(True, ["Test User", "vote-bar"], id="logged-in"),
     ],
 )
 async def test_article_view(
@@ -221,19 +224,72 @@ async def test_article_view(
     auth_client: AsyncClient,
     published_article: Article,
     use_auth: bool,
-    expected_text: str,
+    expected_texts: list[str],
 ) -> None:
-    """Article view returns 200; logged-in user sees their display name."""
+    """Article view returns 200 and renders the vote bar; logged-in user sees their
+    name."""
     c = auth_client if use_auth else client
     resp = await c.get(f"/articles/{published_article.slug}/view")
     assert resp.status_code == 200
-    assert expected_text in resp.text
+    for text in expected_texts:
+        assert text in resp.text
 
 
 async def test_article_view_404(client: AsyncClient) -> None:
     """Article view returns 404 for an unknown identifier."""
     resp = await client.get("/articles/nonexistent/view")
     assert resp.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("vote_value", "active_present"),
+    [
+        pytest.param(None, False, id="no-vote"),
+        pytest.param(1, True, id="upvote"),
+        pytest.param(-1, True, id="downvote"),
+    ],
+)
+async def test_article_view_vote_state(
+    auth_client: AsyncClient,
+    published_article: Article,
+    db: AsyncSession,
+    user: User,
+    vote_value: int | None,
+    active_present: bool,
+) -> None:
+    """Active class on vote button reflects the current user's existing vote."""
+    if vote_value is not None:
+        db.add(Vote(article_id=published_article.id, user_id=user.id, value=vote_value))
+        await db.commit()
+    resp = await auth_client.get(f"/articles/{published_article.slug}/view")
+    assert resp.status_code == 200
+    assert ("vote-btn--active" in resp.text) == active_present
+
+
+@pytest.mark.parametrize(
+    ("own_comment", "expect_actions"),
+    [
+        pytest.param(True, True, id="own"),
+        pytest.param(False, False, id="other"),
+    ],
+)
+async def test_article_view_comment_actions(
+    auth_client: AsyncClient,
+    published_article: Article,
+    db: AsyncSession,
+    user: User,
+    other_user: User,
+    own_comment: bool,
+    expect_actions: bool,
+) -> None:
+    """Edit/delete buttons appear iff the logged-in user authored the comment."""
+    author = user if own_comment else other_user
+    db.add(Comment(article_id=published_article.id, author_id=author.id, body="A note"))
+    await db.commit()
+    resp = await auth_client.get(f"/articles/{published_article.slug}/view")
+    assert resp.status_code == 200
+    assert "A note" in resp.text
+    assert ("comment-edit-btn" in resp.text) == expect_actions
 
 
 # ── Index page ─────────────────────────────────────────────────────────────────
