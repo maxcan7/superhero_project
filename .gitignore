@@ -30,3 +30,6 @@ htmlcov/
 
 # Compiled frontend — source lives in static/ts/
 superhero_project/static/js/
+
+# Dev seeds — not committed
+scripts/dev_seeds/

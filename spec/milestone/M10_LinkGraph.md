@@ -1,5 +1,5 @@
 # M10: Link Graph
-Status: planned
+Status: in-progress
 
 Entity relationship graph: wikilinks in article bodies, typed edges from domain metadata fields, and reference panels showing connections between articles.
 
@@ -49,7 +49,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
 
 ## Tasks
 
-- [ ] **1.** `feat: add article_links migration`
+- [x] **1.** `feat: add article_links migration`
   `article_links` table with source/target foreign keys and a nullable `field_name` column distinguishing wikilinks (NULL) from named metadata edges. Indexed in both directions for fast panel queries.
 
   ```sql
