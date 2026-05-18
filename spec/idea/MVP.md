@@ -1,6 +1,6 @@
 # Superhero Universe Wiki — Spec
 
-Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md)
+Corresponds to [M1](../milestone/M1_Foundation.md) · [M2](../milestone/M2_Auth.md) · [M3](../milestone/M3_Articles.md) · [M4](../milestone/M4_Moderation.md) · [M5](../milestone/M5_Community.md) · [M6](../milestone/M6_Search.md) · [M7](../milestone/M7_Content.md) · [M8](../milestone/M8_Packaging.md) · [M9](../milestone/M9_Frontend.md)
 
 ---
 
@@ -88,7 +88,8 @@ articles (
   content TEXT,    -- raw Markdown body
   author_id REFERENCES users(id),
   status,          -- draft | pending | published | rejected
-  created_at, updated_at, published_at
+  created_at, updated_at, published_at,
+  search_vector TSVECTOR  -- maintained by trigger for full-text search
 )
 
 article_tags (article_id, tag)
@@ -160,21 +161,14 @@ Roles:
 
 ## Application Structure
 
-`superhero_project/` is a placeholder — rename once the project has a name.
-
 ```
 superhero_project/
   main.py
   config.py
+  dependencies.py
   db/
     models.py
     session.py
-  routers/
-    articles.py
-    auth.py
-    votes.py
-    comments.py
-    moderation.py
   domain/
     profile.py
     event.py
@@ -182,16 +176,40 @@ superhero_project/
     location.py
     tech.py
     lore.py
+  routers/
+    _utils.py
+    articles.py
+    articles_html.py
+    auth.py
+    comments.py
+    community.py
+    moderation.py
+    votes.py
   templates/
     base.html
-    article.html
     index.html
+    article.html
+    editor.html
+    history.html
+    search.html
+    contributors/
+      profile.html
+    me/
+      articles.html
     moderation/
       queue.html
+    tags/
+      index.html
+      detail.html
   static/
     css/
-    js/
+      main.css
+    ts/               ← TypeScript source
+    js/               ← compiled output (esbuild)
 alembic/
+scripts/
+tests/
+spec/
 flake.nix
 devenv.nix
 nix/
@@ -199,10 +217,7 @@ nix/
   server.nix
 pyproject.toml
 uv.lock
-docs/
-  style-guide.md
-  canon-rules.md
-  how-to-contribute.md
+tsconfig.json
 ```
 
 ---
@@ -252,3 +267,5 @@ At meaningful scale, move Postgres to a managed instance and upgrade the VPS.
 | [M5: Community](../milestone/M5_Community.md) | Voting, comments, contributor profiles, tag browsing |
 | [M6: Search](../milestone/M6_Search.md) | Postgres full-text search, search UI |
 | [M7: Content](../milestone/M7_Content.md) | Style guide, canon rules, seed articles to establish tone and demonstrate wiki-diving |
+| [M8: Packaging](../milestone/M8_Packaging.md) | uv2nix build, NixOS module wiring, end-to-end deployment verification |
+| [M9: Frontend](../milestone/M9_Frontend.md) | Nav, article actions, vote/comment UI, editor, my-articles page, TypeScript toolchain |
