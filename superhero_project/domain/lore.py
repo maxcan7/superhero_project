@@ -8,6 +8,8 @@ from enum import StrEnum
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from superhero_project.domain._utils import NormalizedStrList
+
 
 class LoreCategory(StrEnum):
     """Thematic category of a lore entry."""
@@ -26,4 +28,4 @@ class LoreMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     category: LoreCategory = LoreCategory.other
-    related_articles: list[str] = []
+    related_articles: NormalizedStrList = []

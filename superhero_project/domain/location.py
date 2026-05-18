@@ -5,6 +5,8 @@ from enum import StrEnum
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from superhero_project.domain._utils import NormalizedStrList
+
 
 class LocationType(StrEnum):
     """Category of location."""
@@ -33,4 +35,4 @@ class LocationMetadata(BaseModel):
     location_type: LocationType = LocationType.other
     region: str | None = None
     status: LocationStatus = LocationStatus.unknown
-    notable_residents: list[str] = []
+    notable_residents: NormalizedStrList = []

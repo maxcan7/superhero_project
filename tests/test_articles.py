@@ -112,7 +112,7 @@ async def test_create_article_invalid_metadata(auth_client: AsyncClient) -> None
 # ── Update article ─────────────────────────────────────────────────────────────
 
 _PROFILE_META = {
-    "aliases": ["Updated"],
+    "aliases": ["updated"],
     "affiliation": [],
     "powers": ["speed"],
     "status": "active",

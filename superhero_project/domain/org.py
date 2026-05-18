@@ -8,6 +8,8 @@ from enum import StrEnum
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from superhero_project.domain._utils import NormalizedStrList
+
 
 class OrgType(StrEnum):
     """Organizational category."""
@@ -33,9 +35,9 @@ class OrgMetadata(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    aliases: list[str] = []
+    aliases: NormalizedStrList = []
     org_type: OrgType = OrgType.other
     founded: str | None = None
     headquarters: str | None = None
     status: OrgStatus = OrgStatus.unknown
-    affiliation: list[str] = []
+    affiliation: NormalizedStrList = []
