@@ -5,10 +5,10 @@ let
   pgDb   = "superhero_dev";
   tsSrc  = "./superhero_project/static/ts";
   jsOut  = "./superhero_project/static/js";
-  esbuildArgs = "${tsSrc}/article.ts ${tsSrc}/preview.ts --outdir=${jsOut} --target=es2020";
+  esbuildArgs = "${tsSrc}/article.ts ${tsSrc}/preview.ts ${tsSrc}/editor.ts --outdir=${jsOut} --target=es2020";
 in
 {
-  packages = [ pkgs.esbuild ];
+  packages = [ pkgs.esbuild pkgs.typescript ];
 
   languages.python = {
     enable = true;

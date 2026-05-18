@@ -40,6 +40,14 @@ repos:
         pass_filenames: false
         args: [superhero_project]
 
+      - id: tsc
+        name: TypeScript type check
+        entry: tsc
+        language: system
+        types: [ts]
+        pass_filenames: false
+        args: [--noEmit]
+
       - id: pytest
         name: pytest
         entry: uv run pytest
