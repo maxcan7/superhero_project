@@ -11,7 +11,7 @@ the backend; the frontend calls existing API/HTML endpoints.
   imports `Comment`/`Vote` in the articles router. Prerequisite for commits 4 and 6.
   `superhero_project/routers/_utils.py superhero_project/routers/articles.py`
 
-- [ ] **2.** `feat(nav): add site-wide navigation links`
+- [x] **2.** `feat(nav): add site-wide navigation links`
   Adds Search, Browse (tags), New Article, My Articles, and Mod Queue links to the
   base nav. New Article and My Articles are auth-gated; Mod Queue is mod/admin only.
   `superhero_project/templates/base.html superhero_project/static/css/main.css`

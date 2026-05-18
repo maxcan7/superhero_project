@@ -11,7 +11,14 @@
     <nav class="site-nav">
       <a class="site-title" href="/">Superhero Wiki</a>
       <div class="nav-links">
+        <a href="/articles/search">Search</a>
+        <a href="/tags">Browse</a>
         {% if user %}
+          <a href="/articles/new" class="nav-cta">+ New Article</a>
+          <a href="/me/articles">My Articles</a>
+          {% if user.role in ('moderator', 'admin') %}
+            <a href="/moderation/queue/view">Mod Queue</a>
+          {% endif %}
           <span class="nav-user">{{ user.display_name }}</span>
           <a href="/auth/logout">Log out</a>
         {% else %}

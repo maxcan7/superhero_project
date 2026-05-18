@@ -59,6 +59,20 @@ a:hover { color: var(--color-accent-dark); text-decoration: underline; }
 
 .nav-user { color: var(--color-muted); }
 
+.nav-cta {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--color-accent);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.nav-cta:hover {
+  background: var(--color-accent-dark);
+  text-decoration: none;
+}
+
 /* ── Footer ────────────────────────────────────────────────────────────────── */
 .site-footer {
   border-top: 1px solid var(--color-border);
