@@ -35,7 +35,7 @@ in {
       default = null;
       description = ''
         Path to a file containing secret environment variables
-        (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, SESSION_SECRET_KEY, …).
+        (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, SESSION_SECRET, …).
         Loaded by systemd before the process starts.
       '';
     };
