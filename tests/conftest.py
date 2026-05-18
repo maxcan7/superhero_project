@@ -2,6 +2,7 @@
 
 import getpass
 from collections.abc import AsyncGenerator
+from collections.abc import Generator
 from datetime import datetime
 
 import pytest
@@ -54,7 +55,8 @@ async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """AsyncClient wired to a fresh app instance with the DB dependency overridden."""
     app = create_app()
 
-    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    def _override_get_db() -> Generator[AsyncSession, None, None]:
+        """Yield the test DB session in place of the real dependency."""
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
@@ -102,7 +104,8 @@ async def auth_client(
     """AsyncClient with a valid session cookie for the primary test user."""
     app = create_app()
 
-    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    def _override_get_db() -> Generator[AsyncSession, None, None]:
+        """Yield the test DB session in place of the real dependency."""
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
@@ -125,7 +128,8 @@ async def other_auth_client(
     """AsyncClient with a valid session cookie for the second test user."""
     app = create_app()
 
-    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    def _override_get_db() -> Generator[AsyncSession, None, None]:
+        """Yield the test DB session in place of the real dependency."""
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
@@ -164,7 +168,8 @@ async def mod_auth_client(
     """AsyncClient with a valid session cookie for the moderator user."""
     app = create_app()
 
-    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    def _override_get_db() -> Generator[AsyncSession, None, None]:
+        """Yield the test DB session in place of the real dependency."""
         yield db
 
     app.dependency_overrides[get_db] = _override_get_db
@@ -256,3 +261,12 @@ async def published_article(db: AsyncSession, user: User) -> Article:
     await db.commit()
     await db.refresh(article)
     return article
+
+
+@pytest.fixture
+async def edited_article(
+    auth_client: AsyncClient, published_article: Article
+) -> Article:
+    """Published article that has been edited once, creating one history entry."""
+    await auth_client.put(f"/articles/{published_article.slug}", json={"content": "v2"})
+    return published_article

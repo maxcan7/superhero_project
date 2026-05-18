@@ -20,6 +20,7 @@ from superhero_project.db.models import ArticleStatus
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.dependencies import get_db
 from superhero_project.routers import articles
+from superhero_project.routers import articles_html
 from superhero_project.routers import auth
 from superhero_project.routers import comments
 from superhero_project.routers import community
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
         name="static",
     )
     app.include_router(auth.router)
+    app.include_router(articles_html.router)
     app.include_router(articles.router)
     app.include_router(moderation.router)
     app.include_router(votes.router)
