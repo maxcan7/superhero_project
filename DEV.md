@@ -4,23 +4,20 @@ Manual testing guide for running the app end-to-end in a browser.
 
 ## Setup
 
-Everything can run in the background from a single `devenv shell` terminal.
-`devenv up` is a TUI app so it must be redirected to avoid suspending when backgrounded:
+Everything can run in the background from a single `devenv shell` terminal:
 
 ```sh
 devenv shell
-devenv up > /tmp/devenv.log 2>&1 &                      # start PostgreSQL
+devenv up -d                                            # start PostgreSQL (detached)
 uv run uvicorn superhero_project.main:app --reload &    # start app
 ```
-
-To watch postgres logs: `tail -f /tmp/devenv.log`
 
 To stop services:
 
 ```sh
 bash scripts/kill_server.sh         # stop both (default)
 bash scripts/kill_server.sh app     # stop uvicorn only
-bash scripts/kill_server.sh db      # stop postgres only
+devenv processes down               # stop postgres only
 ```
 
 Postgres data persists in `.devenv/state/postgres/` across restarts.
