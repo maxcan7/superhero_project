@@ -1,44 +1,55 @@
 (function () {
   const root = document.getElementById('article-root');
   if (!root) return;
-  const id = root.dataset.identifier;
+  const id = root.dataset.identifier as string;
 
   // ── Votes ────────────────────────────────────────────────────────────────────
-  const upBtn = document.getElementById('vote-up');
-  const downBtn = document.getElementById('vote-down');
-  const scoreEl = document.getElementById('vote-score');
-  const voteBar = document.querySelector('.vote-bar');
+  const upBtn = document.getElementById('vote-up') as HTMLButtonElement | null;
+  const downBtn = document.getElementById('vote-down') as HTMLButtonElement | null;
+  const scoreEl = document.getElementById('vote-score') as HTMLElement | null;
+  const voteBar = document.querySelector('.vote-bar') as HTMLElement | null;
+
+  interface VoteState {
+    userVote: 1 | -1 | null;
+    upvotes: number;
+    downvotes: number;
+  }
+
+  interface VoteResponse {
+    upvotes: number;
+    downvotes: number;
+  }
 
   if (upBtn && downBtn && scoreEl && voteBar) {
     const raw = voteBar.dataset.userVote;
-    const state = {
+    const state: VoteState = {
       userVote: raw === '1' ? 1 : raw === '-1' ? -1 : null,
-      upvotes: parseInt(scoreEl.dataset.upvotes, 10),
-      downvotes: parseInt(scoreEl.dataset.downvotes, 10),
+      upvotes: parseInt(scoreEl.dataset.upvotes ?? '0', 10),
+      downvotes: parseInt(scoreEl.dataset.downvotes ?? '0', 10),
     };
 
-    function applyVoteUI() {
-      scoreEl.textContent = state.upvotes - state.downvotes;
-      upBtn.textContent = `▲ ${state.upvotes}`;
-      downBtn.textContent = `▽ ${state.downvotes}`;
-      upBtn.classList.toggle('vote-btn--active', state.userVote === 1);
-      downBtn.classList.toggle('vote-btn--active', state.userVote === -1);
+    function applyVoteUI(): void {
+      scoreEl!.textContent = String(state.upvotes - state.downvotes);
+      upBtn!.textContent = `▲ ${state.upvotes}`;
+      downBtn!.textContent = `▽ ${state.downvotes}`;
+      upBtn!.classList.toggle('vote-btn--active', state.userVote === 1);
+      downBtn!.classList.toggle('vote-btn--active', state.userVote === -1);
     }
 
-    async function castVote(value) {
+    async function castVote(value: 1 | -1): Promise<VoteResponse | null> {
       const res = await fetch(`/votes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value }),
       });
-      return res.ok ? res.json() : null;
+      return res.ok ? (res.json() as Promise<VoteResponse>) : null;
     }
 
-    async function removeVote() {
+    async function removeVote(): Promise<void> {
       await fetch(`/votes/${id}`, { method: 'DELETE' });
     }
 
-    upBtn.addEventListener('click', async function () {
+    upBtn.addEventListener('click', async () => {
       if (state.userVote === 1) {
         await removeVote();
         state.upvotes -= 1;
@@ -54,7 +65,7 @@
       applyVoteUI();
     });
 
-    downBtn.addEventListener('click', async function () {
+    downBtn.addEventListener('click', async () => {
       if (state.userVote === -1) {
         await removeVote();
         state.downvotes -= 1;
@@ -72,10 +83,17 @@
   }
 
   // ── Comments ─────────────────────────────────────────────────────────────────
-  const commentList = document.getElementById('comment-list');
-  const commentForm = document.getElementById('comment-form');
+  const commentList = document.getElementById('comment-list') as HTMLUListElement | null;
+  const commentForm = document.getElementById('comment-form') as HTMLFormElement | null;
 
-  function escHtml(str) {
+  interface CommentResponse {
+    id: string;
+    author_name: string;
+    body: string;
+    created_at: string;
+  }
+
+  function escHtml(str: string): string {
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -83,10 +101,10 @@
       .replace(/"/g, '&quot;');
   }
 
-  function bindCommentActions(li) {
-    li.querySelector('.comment-edit-btn')?.addEventListener('click', function () {
-      const bodyEl = li.querySelector('.comment-body');
-      const original = bodyEl.textContent;
+  function bindCommentActions(li: HTMLElement): void {
+    li.querySelector('.comment-edit-btn')?.addEventListener('click', () => {
+      const bodyEl = li.querySelector('.comment-body') as HTMLElement;
+      const original = bodyEl.textContent ?? '';
       bodyEl.style.display = 'none';
 
       const form = document.createElement('div');
@@ -99,15 +117,15 @@
         </div>`;
       li.insertBefore(form, li.querySelector('.comment-actions'));
 
-      form.querySelector('.cancel-edit-btn').addEventListener('click', function () {
+      (form.querySelector('.cancel-edit-btn') as HTMLButtonElement).addEventListener('click', () => {
         bodyEl.style.display = '';
         form.remove();
       });
 
-      form.querySelector('.save-edit-btn').addEventListener('click', async function () {
-        const newBody = form.querySelector('textarea').value.trim();
+      (form.querySelector('.save-edit-btn') as HTMLButtonElement).addEventListener('click', async () => {
+        const newBody = (form.querySelector('textarea') as HTMLTextAreaElement).value.trim();
         if (!newBody) return;
-        const commentId = li.dataset.id;
+        const commentId = li.dataset.id as string;
         const res = await fetch(`/comments/${id}/${commentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -121,31 +139,31 @@
       });
     });
 
-    li.querySelector('.comment-delete-btn')?.addEventListener('click', async function () {
+    li.querySelector('.comment-delete-btn')?.addEventListener('click', async () => {
       if (!confirm('Delete this comment?')) return;
-      const commentId = li.dataset.id;
+      const commentId = li.dataset.id as string;
       const res = await fetch(`/comments/${id}/${commentId}`, { method: 'DELETE' });
       if (res.ok) {
         li.remove();
         const emptyEl = document.getElementById('comment-empty');
         if (emptyEl) return;
         if (commentList && !commentList.querySelector('.comment')) {
-          const li = document.createElement('li');
-          li.id = 'comment-empty';
-          li.className = 'comment-empty';
-          li.textContent = 'No comments yet.';
-          commentList.appendChild(li);
+          const emptyLi = document.createElement('li');
+          emptyLi.id = 'comment-empty';
+          emptyLi.className = 'comment-empty';
+          emptyLi.textContent = 'No comments yet.';
+          commentList.appendChild(emptyLi);
         }
       }
     });
   }
 
-  commentList?.querySelectorAll('.comment').forEach(bindCommentActions);
+  commentList?.querySelectorAll<HTMLElement>('.comment').forEach(bindCommentActions);
 
   if (commentForm && commentList) {
-    commentForm.addEventListener('submit', async function (e) {
+    commentForm.addEventListener('submit', async (e: Event) => {
       e.preventDefault();
-      const textarea = this.querySelector('textarea');
+      const textarea = commentForm.querySelector('textarea') as HTMLTextAreaElement;
       const body = textarea.value.trim();
       if (!body) return;
       const res = await fetch(`/comments/${id}`, {
@@ -154,10 +172,9 @@
         body: JSON.stringify({ body }),
       });
       if (!res.ok) return;
-      const comment = await res.json();
+      const comment = (await res.json()) as CommentResponse;
 
-      const emptyEl = document.getElementById('comment-empty');
-      emptyEl?.remove();
+      document.getElementById('comment-empty')?.remove();
 
       const li = document.createElement('li');
       li.className = 'comment';
