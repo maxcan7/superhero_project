@@ -440,3 +440,54 @@ async def test_search_results_missing_q(client: AsyncClient) -> None:
     """GET /articles/search/results without q returns 422."""
     resp = await client.get("/articles/search/results")
     assert resp.status_code == 422
+
+
+# ── Editor HTML views ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "url_tmpl",
+    [
+        pytest.param("/articles/new", id="new"),
+        pytest.param("/articles/{slug}/edit", id="edit"),
+    ],
+)
+async def test_editor_requires_auth(
+    client: AsyncClient, published_article: Article, url_tmpl: str
+) -> None:
+    """Editor routes return 401 without a session."""
+    resp = await client.get(url_tmpl.format(slug=published_article.slug))
+    assert resp.status_code == 401
+
+
+async def test_new_article_form_renders(auth_client: AsyncClient) -> None:
+    """GET /articles/new renders the create editor."""
+    resp = await auth_client.get("/articles/new")
+    assert resp.status_code == 200
+    assert 'data-mode="create"' in resp.text
+
+
+async def test_edit_article_form_access_errors(
+    auth_client: AsyncClient,
+    other_auth_client: AsyncClient,
+    published_article: Article,
+) -> None:
+    """Edit form returns 403 for a non-owner and 404 for a missing article."""
+    assert (
+        await other_auth_client.get(f"/articles/{published_article.slug}/edit")
+    ).status_code == 403
+    assert (await auth_client.get("/articles/nonexistent/edit")).status_code == 404
+
+
+async def test_edit_article_form_renders(
+    auth_client: AsyncClient,
+    mod_auth_client: AsyncClient,
+    published_article: Article,
+) -> None:
+    """Edit form is accessible to author and moderator, pre-populated with existing
+    data."""
+    for c in (auth_client, mod_auth_client):
+        resp = await c.get(f"/articles/{published_article.slug}/edit")
+        assert resp.status_code == 200
+        assert 'data-mode="edit"' in resp.text
+        assert "Protector of the city" in resp.text

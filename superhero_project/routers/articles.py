@@ -316,6 +316,17 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     return _to_out(result.scalar_one())
 
 
+@router.get("/new", response_class=HTMLResponse)
+async def new_article_form(request: Request, db: DB) -> Response:
+    """Render the article creation editor."""
+    user = await get_current_user(request, db)
+    return _templates.TemplateResponse(
+        request=request,
+        name="editor.html",
+        context={"user": user, "article": None, "identifier": None},
+    )
+
+
 @router.get("/search", response_class=HTMLResponse)
 async def search_form(request: Request, db: DB) -> Response:
     """Render the search form."""
@@ -440,6 +451,25 @@ async def view_article_history(request: Request, identifier: str, db: DB) -> Res
                 await _load_history(article, db), article.content
             ),
             "user": user,
+        },
+    )
+
+
+@router.get("/{identifier}/edit", response_class=HTMLResponse)
+async def edit_article_form(request: Request, identifier: str, db: DB) -> Response:
+    """Render the article editor pre-populated with existing data."""
+    user = await get_current_user(request, db)
+    article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    if not _can_edit(user, article_db):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    article = _to_out(article_db)
+    return _templates.TemplateResponse(
+        request=request,
+        name="editor.html",
+        context={
+            "user": user,
+            "article": article,
+            "identifier": article.designation or article.slug,
         },
     )
 

@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}{% if article %}Edit {{ identifier }}{% else %}New Article{% endif %} — Superhero Wiki{% endblock %}
+
+{% macro opt(value, current, label=None) %}<option value="{{ value }}"{% if current == value %} selected{% endif %}>{{ label if label else value | replace('_', ' ') | title }}</option>{% endmacro %}
+
+{% block content %}
+<div class="editor-layout">
+
+  <div class="editor-form-pane">
+    <h1 class="editor-heading">{% if article %}Edit Article{% else %}New Article{% endif %}</h1>
+
+    <form id="editor-form"
+          data-mode="{{ 'edit' if article else 'create' }}"
+          {% if identifier %}data-identifier="{{ identifier }}"{% endif %}>
+
+      {% if article %}
+        <div class="form-group">
+          <span class="form-label">Type</span>
+          <span class="editor-type-label">{{ article.article_type | replace('_', ' ') | title }}</span>
+        </div>
+        <input type="hidden" id="article-type" value="{{ article.article_type }}">
+      {% else %}
+        <div class="form-group">
+          <label class="form-label" for="article-type">Type</label>
+          <select id="article-type" class="form-select" required>
+            <option value="">— select type —</option>
+            <option value="profile">Profile</option>
+            <option value="event">Event</option>
+            <option value="org">Organization</option>
+            <option value="location">Location</option>
+            <option value="tech">Tech / Artifact</option>
+            <option value="lore">Lore</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="slug-group" hidden>
+          <label class="form-label" for="article-slug">Slug</label>
+          <input type="text" id="article-slug" class="form-input"
+                 placeholder="url-friendly-identifier">
+          <span class="form-hint">Unique URL identifier (e.g. <code>iron-patriot</code>).</span>
+        </div>
+      {% endif %}
+
+      {# ── Profile ──────────────────────────────────────────────────────────── #}
+      {% set pm = article.metadata if article and article.article_type == 'profile' else {} %}
+      <fieldset class="meta-fieldset" id="meta-profile" hidden>
+        <legend>Profile Details</legend>
+        <div class="form-group">
+          <label class="form-label">Aliases <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="aliases" data-list="true"
+                 value="{{ pm.get('aliases', []) | join(', ') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Affiliation <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="affiliation" data-list="true"
+                 value="{{ pm.get('affiliation', []) | join(', ') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Powers <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="powers" data-list="true"
+                 value="{{ pm.get('powers', []) | join(', ') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" data-meta="status">
+            {{ opt('unknown', pm.get('status', 'unknown')) }}
+            {{ opt('active', pm.get('status', 'unknown')) }}
+            {{ opt('retired', pm.get('status', 'unknown')) }}
+            {{ opt('deceased', pm.get('status', 'unknown')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Base of Operations</label>
+          <input type="text" class="form-input" data-meta="base_of_operations"
+                 value="{{ pm.get('base_of_operations') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">First Appearance</label>
+          <input type="text" class="form-input" data-meta="first_appearance"
+                 value="{{ pm.get('first_appearance') or '' }}"
+                 placeholder="e.g. Issue #12, 1963">
+        </div>
+      </fieldset>
+
+      {# ── Event ────────────────────────────────────────────────────────────── #}
+      {% set em = article.metadata if article and article.article_type == 'event' else {} %}
+      <fieldset class="meta-fieldset" id="meta-event" hidden>
+        <legend>Event Details</legend>
+        <div class="form-group">
+          <label class="form-label">Event Date</label>
+          <input type="text" class="form-input" data-meta="event_date"
+                 value="{{ em.get('event_date') or '' }}" placeholder="YYYY-MM-DD">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <input type="text" class="form-input" data-meta="location"
+                 value="{{ em.get('location') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Participants <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="participants" data-list="true"
+                 value="{{ em.get('participants', []) | join(', ') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Outcome</label>
+          <input type="text" class="form-input" data-meta="outcome"
+                 value="{{ em.get('outcome') or '' }}">
+        </div>
+      </fieldset>
+
+      {# ── Organization ─────────────────────────────────────────────────────── #}
+      {% set om = article.metadata if article and article.article_type == 'org' else {} %}
+      <fieldset class="meta-fieldset" id="meta-org" hidden>
+        <legend>Organization Details</legend>
+        <div class="form-group">
+          <label class="form-label">Aliases <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="aliases" data-list="true"
+                 value="{{ om.get('aliases', []) | join(', ') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" data-meta="org_type">
+            {{ opt('other', om.get('org_type', 'other')) }}
+            {{ opt('team', om.get('org_type', 'other')) }}
+            {{ opt('agency', om.get('org_type', 'other')) }}
+            {{ opt('corporation', om.get('org_type', 'other')) }}
+            {{ opt('cult', om.get('org_type', 'other')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" data-meta="status">
+            {{ opt('unknown', om.get('status', 'unknown')) }}
+            {{ opt('active', om.get('status', 'unknown')) }}
+            {{ opt('disbanded', om.get('status', 'unknown')) }}
+            {{ opt('defunct', om.get('status', 'unknown')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Founded</label>
+          <input type="text" class="form-input" data-meta="founded"
+                 value="{{ om.get('founded') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Headquarters</label>
+          <input type="text" class="form-input" data-meta="headquarters"
+                 value="{{ om.get('headquarters') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Affiliation <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="affiliation" data-list="true"
+                 value="{{ om.get('affiliation', []) | join(', ') }}">
+        </div>
+      </fieldset>
+
+      {# ── Location ─────────────────────────────────────────────────────────── #}
+      {% set lm = article.metadata if article and article.article_type == 'location' else {} %}
+      <fieldset class="meta-fieldset" id="meta-location" hidden>
+        <legend>Location Details</legend>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" data-meta="location_type">
+            {{ opt('other', lm.get('location_type', 'other')) }}
+            {{ opt('city', lm.get('location_type', 'other')) }}
+            {{ opt('base', lm.get('location_type', 'other')) }}
+            {{ opt('zone', lm.get('location_type', 'other')) }}
+            {{ opt('dimension', lm.get('location_type', 'other')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Region</label>
+          <input type="text" class="form-input" data-meta="region"
+                 value="{{ lm.get('region') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" data-meta="status">
+            {{ opt('unknown', lm.get('status', 'unknown')) }}
+            {{ opt('active', lm.get('status', 'unknown')) }}
+            {{ opt('destroyed', lm.get('status', 'unknown')) }}
+            {{ opt('abandoned', lm.get('status', 'unknown')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notable Residents <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="notable_residents" data-list="true"
+                 value="{{ lm.get('notable_residents', []) | join(', ') }}">
+        </div>
+      </fieldset>
+
+      {# ── Tech / Artifact ──────────────────────────────────────────────────── #}
+      {% set tm = article.metadata if article and article.article_type == 'tech' else {} %}
+      <fieldset class="meta-fieldset" id="meta-tech" hidden>
+        <legend>Tech / Artifact Details</legend>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" data-meta="tech_type">
+            {{ opt('other', tm.get('tech_type', 'other')) }}
+            {{ opt('gear', tm.get('tech_type', 'other')) }}
+            {{ opt('serum', tm.get('tech_type', 'other')) }}
+            {{ opt('relic', tm.get('tech_type', 'other')) }}
+            {{ opt('weapon', tm.get('tech_type', 'other')) }}
+            {{ opt('vehicle', tm.get('tech_type', 'other')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Origin</label>
+          <input type="text" class="form-input" data-meta="origin"
+                 value="{{ tm.get('origin') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current Holder</label>
+          <input type="text" class="form-input" data-meta="current_holder"
+                 value="{{ tm.get('current_holder') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" data-meta="status">
+            {{ opt('unknown', tm.get('status', 'unknown')) }}
+            {{ opt('active', tm.get('status', 'unknown')) }}
+            {{ opt('destroyed', tm.get('status', 'unknown')) }}
+            {{ opt('lost', tm.get('status', 'unknown')) }}
+          </select>
+        </div>
+      </fieldset>
+
+      {# ── Lore ─────────────────────────────────────────────────────────────── #}
+      {% set lore_m = article.metadata if article and article.article_type == 'lore' else {} %}
+      <fieldset class="meta-fieldset" id="meta-lore" hidden>
+        <legend>Lore Details</legend>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select" data-meta="category">
+            {{ opt('other', lore_m.get('category', 'other')) }}
+            {{ opt('power_system', lore_m.get('category', 'other')) }}
+            {{ opt('history', lore_m.get('category', 'other')) }}
+            {{ opt('law', lore_m.get('category', 'other')) }}
+            {{ opt('geography', lore_m.get('category', 'other')) }}
+            {{ opt('culture', lore_m.get('category', 'other')) }}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Related Articles <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="related_articles" data-list="true"
+                 value="{{ lore_m.get('related_articles', []) | join(', ') }}">
+        </div>
+      </fieldset>
+
+      {# ── Shared fields ────────────────────────────────────────────────────── #}
+      <div class="form-group">
+        <label class="form-label" for="article-tags">Tags <span class="form-hint-inline">(comma-separated)</span></label>
+        <input type="text" id="article-tags" class="form-input"
+               value="{{ article.tags | join(', ') if article else '' }}"
+               placeholder="e.g. hero, avengers, shield">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="editor-input">Content (Markdown)</label>
+        <textarea id="editor-input" class="editor-textarea"
+                  placeholder="Write article content in Markdown…">{{ article.content if article else '' }}</textarea>
+      </div>
+
+      <div class="editor-actions">
+        <button type="submit" class="btn btn-primary">
+          {% if article %}Save Changes{% else %}Create Article{% endif %}
+        </button>
+        {% if article %}
+          <a href="/articles/{{ identifier }}/view" class="btn btn-ghost">Cancel</a>
+        {% endif %}
+      </div>
+
+      <p id="editor-error" class="editor-error" hidden></p>
+    </form>
+  </div>
+
+  <div class="editor-preview-pane">
+    <h2 class="editor-preview-heading">Preview</h2>
+    <div id="preview-pane" class="preview-pane"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/editor.js"></script>
+<script src="/static/js/preview.js"></script>
+{% endblock %}
