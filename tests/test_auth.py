@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -81,6 +82,26 @@ async def test_fetch_github_user(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert await _fetch_github_user("code") == (7, "ghuser", "GH User")
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [httpx.HTTPError("bad"), KeyError("access_token")],
+    ids=["http_error", "key_error"],
+)
+async def test_callback_github_error_redirects(
+    monkeypatch: pytest.MonkeyPatch,
+    client: AsyncClient,
+    exc: Exception,
+) -> None:
+    """OAuth callback redirects home gracefully when GitHub returns an error."""
+    monkeypatch.setattr(
+        "superhero_project.routers.auth._fetch_github_user",
+        AsyncMock(side_effect=exc),
+    )
+    resp = await client.get("/auth/callback?code=bogus", follow_redirects=False)
+    assert resp.status_code in (302, 307)
+    assert resp.headers["location"] == "/"
 
 
 async def test_callback_existing_user_updated(

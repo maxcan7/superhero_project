@@ -88,7 +88,10 @@ async def login() -> RedirectResponse:
 @router.get("/callback")
 async def callback(request: Request, code: str, db: DB) -> RedirectResponse:
     """Handle the GitHub OAuth callback, upsert the user, and set the session."""
-    gh_id, gh_username, display_name = await _fetch_github_user(code)
+    try:
+        gh_id, gh_username, display_name = await _fetch_github_user(code)
+    except (httpx.HTTPError, KeyError):
+        return RedirectResponse("/")
     user = await _upsert_user(gh_id, gh_username, display_name, db)
     request.session["user_id"] = user.id
     request.session["role"] = user.role.value
