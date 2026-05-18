@@ -133,6 +133,9 @@ The alias index is the shared lookup that makes both passes work. It maps every 
 
   LoreMetadata:
     related_articles (list[str])  → field_name = "related_articles"
+
+  ComicMetadata:
+    publishers (list[str])        → field_name = "publishers"
   ```
 
   On save: delete all existing metadata edges for this source (`field_name IS NOT NULL`), re-extract, insert resolved edges. Called in the same save path as the wikilink parser, after `_validate_metadata`.

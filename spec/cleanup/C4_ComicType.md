@@ -80,7 +80,7 @@ status       → colored chip: ongoing=green, completed=grey, cancelled=red, unk
   ```
   `superhero_project/domain/comic.py superhero_project/db/models.py superhero_project/routers/articles.py alembic/versions/<hash>_add_comic_article_type.py`
 
-- [ ] **3.** `docs: update M10 field mapping for comic`
+- [x] **3.** `docs: update M10 field mapping for comic`
   Add `ComicMetadata.publishers (list[str]) → field_name = "publishers"` to the metadata
   edge extractor field mapping table in M10.
   `spec/milestone/M10_LinkGraph.md`
