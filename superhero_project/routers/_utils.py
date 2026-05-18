@@ -3,6 +3,7 @@
 import re
 from collections.abc import Mapping
 from collections.abc import Sequence
+from datetime import datetime
 from typing import TypedDict
 
 from fastapi import HTTPException
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.interfaces import LoaderOption
 
 from superhero_project.db.models import Article
+from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
 
 _CAPE_RE = re.compile(r"^CAPE-\d{4,}$")
@@ -20,8 +22,10 @@ class ArticleListItem(TypedDict):
     slug: str
     designation: str | None
     article_type: ArticleType
+    status: ArticleStatus
     metadata: Mapping[str, object]
     tags: list[str]
+    updated_at: datetime
 
 
 def article_list_item(article: Article) -> ArticleListItem:
@@ -29,8 +33,10 @@ def article_list_item(article: Article) -> ArticleListItem:
         "slug": article.slug,
         "designation": article.designation,
         "article_type": article.article_type,
+        "status": article.status,
         "metadata": article.metadata_,
         "tags": [t.tag for t in article.tags],
+        "updated_at": article.updated_at,
     }
 
 
