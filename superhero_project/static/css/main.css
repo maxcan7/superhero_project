@@ -546,6 +546,53 @@ a:hover { color: var(--color-accent-dark); text-decoration: underline; }
   color: var(--color-muted);
 }
 
+/* ── My Articles page ───────────────────────────────────────────────────────── */
+.me-layout {
+  max-width: var(--max-width);
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.me-heading {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+
+.me-new-btn {
+  margin-bottom: 1.5rem;
+}
+
+.me-article-list .article-list-item {
+  flex-wrap: wrap;
+}
+
+.me-edit-btn {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.article-updated {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+/* ── Status badges ──────────────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-badge--draft    { background: var(--color-badge-bg); color: var(--color-muted); }
+.status-badge--pending  { background: #fef3c7; color: #92400e; }
+.status-badge--published { background: #d1fae5; color: #065f46; }
+.status-badge--rejected { background: #fee2e2; color: #991b1b; }
+
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .article-layout {

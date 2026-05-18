@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}My Articles — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="me-layout">
+  <h1 class="me-heading">My Articles</h1>
+  <a href="/articles/new" class="btn btn-primary me-new-btn">+ New Article</a>
+  {% if articles %}
+    <ul class="article-list me-article-list">
+      {% for article in articles %}
+        <li class="article-list-item">
+          <a href="/articles/{{ article.designation or article.slug }}/view">
+            {{ article.designation or article.slug }}
+          </a>
+          <span class="article-type-badge">{{ article.article_type }}</span>
+          <span class="status-badge status-badge--{{ article.status }}">{{ article.status }}</span>
+          <span class="article-updated">{{ article.updated_at.strftime("%Y-%m-%d") }}</span>
+          <a href="/articles/{{ article.slug }}/edit" class="btn btn-secondary me-edit-btn">Edit</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">You haven't written any articles yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

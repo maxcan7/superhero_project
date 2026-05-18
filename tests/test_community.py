@@ -1,4 +1,4 @@
-"""Tests for contributor profiles and tag browsing (M5 commit 2)."""
+"""Tests for contributor profiles, tag browsing, and personal pages."""
 
 import pytest
 from httpx import AsyncClient
@@ -107,3 +107,37 @@ async def test_contributor_excludes_unpublished(
         "No published articles yet."
         in (await client.get(f"/contributors/{user.github_username}")).text
     )
+
+
+# ── My articles (/me/articles) ─────────────────────────────────────────────────
+
+
+async def test_my_articles_requires_auth(client: AsyncClient) -> None:
+    """Unauthenticated request returns 401."""
+    assert (await client.get("/me/articles")).status_code == 401
+
+
+async def test_my_articles_empty_state(auth_client: AsyncClient) -> None:
+    """Authenticated user with no articles sees the empty state."""
+    assert "written any articles yet." in (await auth_client.get("/me/articles")).text
+
+
+async def test_my_articles_shows_all_statuses(
+    auth_client: AsyncClient,
+    draft_article: Article,
+    published_article: Article,
+    pending_article: Article,
+) -> None:
+    """All of the user's articles appear regardless of status."""
+    text = (await auth_client.get("/me/articles")).text
+    assert draft_article.slug in text
+    assert published_article.slug in text
+    assert pending_article.slug in text
+
+
+async def test_my_articles_excludes_other_users(
+    other_auth_client: AsyncClient, draft_article: Article
+) -> None:
+    """Articles authored by other users do not appear on this page."""
+    text = (await other_auth_client.get("/me/articles")).text
+    assert draft_article.slug not in text

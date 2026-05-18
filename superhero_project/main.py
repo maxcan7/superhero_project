@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(comments.router)
     app.include_router(community.tags_router)
     app.include_router(community.contributors_router)
+    app.include_router(community.me_router)
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request, db: AsyncSession = Depends(get_db)) -> Response:

@@ -1,4 +1,4 @@
-"""Community router: tag browsing and contributor profiles."""
+"""Community router: tag browsing, contributor profiles, and personal pages."""
 
 from pathlib import Path
 
@@ -17,6 +17,7 @@ from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleTag
 from superhero_project.db.models import User
 from superhero_project.dependencies import DB
+from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.routers._utils import article_list_item
 
@@ -24,6 +25,7 @@ _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates
 
 tags_router = APIRouter(prefix="/tags", tags=["tags"])
 contributors_router = APIRouter(prefix="/contributors", tags=["contributors"])
+me_router = APIRouter(prefix="/me", tags=["me"])
 
 
 # ── Tag browsing ───────────────────────────────────────────────────────────────
@@ -112,6 +114,35 @@ async def contributor_profile(request: Request, username: str, db: DB) -> Respon
         name="contributors/profile.html",
         context={
             "profile_user": profile_user,
+            "articles": [article_list_item(a) for a in articles],
+            "user": user,
+        },
+    )
+
+
+# ── Personal pages ─────────────────────────────────────────────────────────────
+
+
+@me_router.get("/articles", response_class=HTMLResponse)
+async def my_articles(request: Request, db: DB) -> Response:
+    """Render the current user's articles across all statuses."""
+    user = await get_current_user(request, db)
+    articles = (
+        (
+            await db.execute(
+                select(Article)
+                .where(Article.author_id == user.id)
+                .options(selectinload(Article.tags))
+                .order_by(Article.updated_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return _templates.TemplateResponse(
+        request=request,
+        name="me/articles.html",
+        context={
             "articles": [article_list_item(a) for a in articles],
             "user": user,
         },

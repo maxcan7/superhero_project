@@ -42,7 +42,7 @@ the backend; the frontend calls existing API/HTML endpoints.
   `editor.ts` to the esbuild inputs. Includes HTML-view tests for both endpoints.
   `superhero_project/routers/articles.py superhero_project/templates/editor.html superhero_project/static/ts/editor.ts superhero_project/static/css/main.css devenv.nix scripts/build_js.sh tests/test_articles.py`
 
-- [ ] **7.** `feat(me): add my articles page`
+- [x] **7.** `feat(me): add my articles page`
   Adds `GET /me/articles` listing all of the current user's articles across all
   statuses with links to view and edit each one.
   `superhero_project/routers/community.py superhero_project/main.py superhero_project/templates/me/articles.html superhero_project/static/css/main.css`
