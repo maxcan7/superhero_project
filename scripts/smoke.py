@@ -368,6 +368,35 @@ def _check_auth_guards(ctx: _Ctx) -> None:
     )
 
 
+def _check_auth_endpoints(ctx: _Ctx) -> None:
+    """Check OAuth login redirect, bad-code handling, and logout.
+
+    The bad-code check contacts GitHub's token endpoint; requires internet access. Run
+    last — logout clears the contrib client's session cookie.
+    """
+    print("\nAuth endpoints:")
+    _check(
+        ctx,
+        "GET /auth/login → 307 to GitHub",
+        ctx.anon.get("/auth/login", follow_redirects=False),
+        307,
+    )
+    _check(
+        ctx,
+        "GET /auth/callback?code=bogus → graceful redirect (not 500)",
+        ctx.anon.get(
+            "/auth/callback", params={"code": "bogus"}, follow_redirects=False
+        ),
+        307,
+    )
+    _check(
+        ctx,
+        "GET /auth/logout → 307",
+        ctx.contrib.get("/auth/logout", follow_redirects=False),
+        307,
+    )
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────────
 
 
@@ -392,6 +421,7 @@ def _run_suite(base: str, contrib_id: int, mod_id: int) -> list[str]:
             _check_post_publish(ctx, profile_slug)
             _check_engagement(ctx, profile_slug)
         _check_auth_guards(ctx)
+        _check_auth_endpoints(ctx)
     finally:
         ctx.contrib.close()
         ctx.mod.close()
