@@ -33,6 +33,7 @@ from superhero_project.domain.links import AliasIndex
 from superhero_project.domain.links import SlugMap
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import render_wikilinks
+from superhero_project.domain.links import sync_metadata_edges
 from superhero_project.domain.links import sync_wikilink_edges
 from superhero_project.domain.location import LocationMetadata
 from superhero_project.domain.lore import LoreMetadata
@@ -230,6 +231,9 @@ async def _create_profile(
     await db.commit()
     index, slug_map = await build_link_maps(db)
     await sync_wikilink_edges(article.id, article.content, index, db)
+    await sync_metadata_edges(
+        article.id, article.article_type, article.metadata_, index, db
+    )
     await db.commit()
     result = await db.execute(
         select(Article)
@@ -261,6 +265,9 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     await db.commit()
     index, slug_map = await build_link_maps(db)
     await sync_wikilink_edges(article.id, article.content, index, db)
+    await sync_metadata_edges(
+        article.id, article.article_type, article.metadata_, index, db
+    )
     await db.commit()
     result = await db.execute(
         select(Article)
@@ -310,6 +317,9 @@ async def update_article(
     await db.commit()
     index, slug_map = await build_link_maps(db)
     await sync_wikilink_edges(article.id, article.content, index, db)
+    await sync_metadata_edges(
+        article.id, article.article_type, article.metadata_, index, db
+    )
     await db.commit()
     result = await db.execute(
         select(Article)

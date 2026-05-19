@@ -1,6 +1,8 @@
 """Link graph domain logic: alias index, wikilink parser, and edge extraction."""
 
 import re
+from dataclasses import dataclass
+from dataclasses import field
 
 from sqlalchemy import select
 from sqlalchemy import text
@@ -15,6 +17,63 @@ AliasIndex = dict[str, int]  # normalized text → article_id
 SlugMap = dict[int, str]  # article_id → slug
 
 _WIKILINK_RE = re.compile(r"\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]")
+
+
+@dataclass
+class TypeHandler:
+    """Per-type config shared by alias extraction and metadata edge extraction."""
+
+    # Metadata keys whose list values are additional aliases for the index
+    alias_fields: list[str] = field(default_factory=list)
+    # True if article.designation should also be indexed
+    index_designation: bool = False
+    # (field_name, metadata_key, is_list) — drives metadata edge extraction
+    edge_fields: list[tuple[str, str, bool]] = field(default_factory=list)
+
+
+_HANDLERS: dict[ArticleType, TypeHandler] = {
+    ArticleType.profile: TypeHandler(
+        alias_fields=["aliases"],
+        index_designation=True,
+        edge_fields=[
+            ("affiliation", "affiliation", True),
+            ("base_of_operations", "base_of_operations", False),
+        ],
+    ),
+    ArticleType.event: TypeHandler(
+        edge_fields=[
+            ("location", "location", False),
+            ("participants", "participants", True),
+        ],
+    ),
+    ArticleType.org: TypeHandler(
+        alias_fields=["aliases"],
+        edge_fields=[
+            ("headquarters", "headquarters", False),
+            ("affiliation", "affiliation", True),
+        ],
+    ),
+    ArticleType.location: TypeHandler(
+        edge_fields=[
+            ("notable_residents", "notable_residents", True),
+        ],
+    ),
+    ArticleType.tech: TypeHandler(
+        edge_fields=[
+            ("current_holder", "current_holder", False),
+        ],
+    ),
+    ArticleType.lore: TypeHandler(
+        edge_fields=[
+            ("related_articles", "related_articles", True),
+        ],
+    ),
+    ArticleType.comic: TypeHandler(
+        edge_fields=[
+            ("publishers", "publishers", True),
+        ],
+    ),
+}
 
 
 async def build_link_maps(db: AsyncSession) -> tuple[AliasIndex, SlugMap]:
@@ -33,14 +92,15 @@ async def build_link_maps(db: AsyncSession) -> tuple[AliasIndex, SlugMap]:
         if article.article_type != ArticleType.disambiguation:
             index[normalize_str(article.slug)] = article.id
 
-        if article.article_type == ArticleType.profile:
-            if article.designation:
-                index[normalize_str(article.designation)] = article.id
-            for alias in article.metadata_.get("aliases", []):
-                index[normalize_str(alias)] = article.id
+        handler = _HANDLERS.get(article.article_type)
+        if handler is None:
+            continue
 
-        elif article.article_type == ArticleType.org:
-            for alias in article.metadata_.get("aliases", []):
+        if handler.index_designation and article.designation:
+            index[normalize_str(article.designation)] = article.id
+
+        for alias_field in handler.alias_fields:
+            for alias in article.metadata_.get(alias_field, []):
                 index[normalize_str(alias)] = article.id
 
     return index, slug_map
@@ -101,6 +161,69 @@ async def sync_wikilink_edges(
             {
                 "source_id": source_id,
                 "target_id": target_id,
+                "resolved_via": resolved_via,
+            },
+        )
+
+
+def _extract_metadata_edges(
+    article_type: ArticleType,
+    metadata: dict[str, str | list[str] | None],
+    index: AliasIndex,
+) -> list[tuple[int, str, str]]:
+    """Return resolved metadata edges as (target_id, field_name, resolved_via)
+    triples."""
+    handler = _HANDLERS.get(article_type)
+    if handler is None:
+        return []
+
+    # Deduplicate by (target_id, field_name): last resolved alias wins
+    seen = {}  # (target_id, field_name) → resolved_via
+    for edge_field_name, meta_key, is_list in handler.edge_fields:
+        value = metadata.get(meta_key)
+        if value is None:
+            continue
+        values: list[str] = value if isinstance(value, list) else [value]
+        for v in values:
+            normalized = normalize_str(v)
+            target_id = index.get(normalized)
+            if target_id is not None:
+                seen[target_id, edge_field_name] = normalized
+
+    return [(tid, fname, via) for (tid, fname), via in seen.items()]
+
+
+async def sync_metadata_edges(
+    source_id: int,
+    article_type: ArticleType,
+    metadata: dict[str, str | list[str] | None],
+    index: AliasIndex,
+    db: AsyncSession,
+) -> None:
+    """Replace metadata edges for source: delete stale ones, insert freshly resolved."""
+    await db.execute(
+        text(
+            "DELETE FROM article_links"
+            " WHERE source_id = :source_id AND field_name IS NOT NULL"
+        ),
+        {"source_id": source_id},
+    )
+
+    for target_id, field_name, resolved_via in _extract_metadata_edges(
+        article_type, metadata, index
+    ):
+        await db.execute(
+            text(
+                "INSERT INTO article_links"
+                " (source_id, target_id, field_name, resolved_via)"
+                " VALUES (:source_id, :target_id, :field_name, :resolved_via)"
+                " ON CONFLICT (source_id, target_id, field_name)"
+                " DO UPDATE SET resolved_via = EXCLUDED.resolved_via"
+            ),
+            {
+                "source_id": source_id,
+                "target_id": target_id,
+                "field_name": field_name,
                 "resolved_via": resolved_via,
             },
         )

@@ -9,8 +9,10 @@ from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.domain.links import AliasIndex
 from superhero_project.domain.links import SlugMap
+from superhero_project.domain.links import _extract_metadata_edges
 from superhero_project.domain.links import build_alias_index
 from superhero_project.domain.links import render_wikilinks
+from superhero_project.domain.links import sync_metadata_edges
 from superhero_project.domain.links import sync_wikilink_edges
 from tests.utils import make_article
 
@@ -216,3 +218,215 @@ async def test_sync_wikilink_edges_replaces_on_resave(
     await sync_wikilink_edges(source.id, "no links here", index, db)
     await db.commit()
     assert await _get_wikilink_edges(db, source.id) == []
+
+
+# --- _extract_metadata_edges (pure unit tests, no DB) ---
+
+_EVENT_META: dict = {
+    "event_date": None,
+    "location": None,
+    "participants": [],
+    "outcome": None,
+}
+_LOCATION_META: dict = {
+    "location_type": "city",
+    "region": None,
+    "status": "unknown",
+    "notable_residents": [],
+}
+_TECH_META: dict = {
+    "tech_type": "gear",
+    "origin": None,
+    "current_holder": None,
+    "status": "unknown",
+}
+_LORE_META: dict = {"category": "other", "related_articles": []}
+_COMIC_META: dict = {
+    "comic_type": "series",
+    "publishers": [],
+    "first_issue": None,
+    "last_issue": None,
+    "status": "unknown",
+}
+
+
+@pytest.mark.parametrize(
+    ("article_type", "metadata", "index", "expected"),
+    [
+        pytest.param(
+            ArticleType.profile,
+            {**_PROFILE_META, "affiliation": ["target"]},
+            {"target": 99},
+            [(99, "affiliation", "target")],
+            id="profile-affiliation-list",
+        ),
+        pytest.param(
+            ArticleType.profile,
+            {**_PROFILE_META, "base_of_operations": "target"},
+            {"target": 99},
+            [(99, "base_of_operations", "target")],
+            id="profile-base-scalar",
+        ),
+        pytest.param(
+            ArticleType.event,
+            {**_EVENT_META, "location": "target"},
+            {"target": 99},
+            [(99, "location", "target")],
+            id="event-location-scalar",
+        ),
+        pytest.param(
+            ArticleType.event,
+            {**_EVENT_META, "participants": ["target"]},
+            {"target": 99},
+            [(99, "participants", "target")],
+            id="event-participants-list",
+        ),
+        pytest.param(
+            ArticleType.org,
+            {**_ORG_META, "headquarters": "target"},
+            {"target": 99},
+            [(99, "headquarters", "target")],
+            id="org-headquarters-scalar",
+        ),
+        pytest.param(
+            ArticleType.org,
+            {**_ORG_META, "affiliation": ["target"]},
+            {"target": 99},
+            [(99, "affiliation", "target")],
+            id="org-affiliation-list",
+        ),
+        pytest.param(
+            ArticleType.location,
+            {**_LOCATION_META, "notable_residents": ["target"]},
+            {"target": 99},
+            [(99, "notable_residents", "target")],
+            id="location-residents-list",
+        ),
+        pytest.param(
+            ArticleType.tech,
+            {**_TECH_META, "current_holder": "target"},
+            {"target": 99},
+            [(99, "current_holder", "target")],
+            id="tech-holder-scalar",
+        ),
+        pytest.param(
+            ArticleType.lore,
+            {**_LORE_META, "related_articles": ["target"]},
+            {"target": 99},
+            [(99, "related_articles", "target")],
+            id="lore-related-list",
+        ),
+        pytest.param(
+            ArticleType.comic,
+            {**_COMIC_META, "publishers": ["target"]},
+            {"target": 99},
+            [(99, "publishers", "target")],
+            id="comic-publishers-list",
+        ),
+        pytest.param(
+            ArticleType.profile,
+            {**_PROFILE_META, "affiliation": ["nobody"]},
+            {},
+            [],
+            id="drops-unresolved",
+        ),
+        pytest.param(
+            ArticleType.profile,
+            {**_PROFILE_META, "affiliation": ["target", "alias"]},
+            {"target": 99, "alias": 99},
+            [(99, "affiliation", "alias")],
+            id="deduplicates",
+        ),
+        pytest.param(
+            ArticleType.disambiguation,
+            {},
+            {"anything": 1},
+            [],
+            id="no-handler",
+        ),
+    ],
+)
+def test_extract_metadata_edges(
+    article_type: ArticleType,
+    metadata: dict[str, str | list[str] | None],
+    index: AliasIndex,
+    expected: list[tuple[int, str, str]],
+) -> None:
+    """Resolves per-type metadata fields to (target_id, field_name, resolved_via)."""
+    assert _extract_metadata_edges(article_type, metadata, index) == expected
+
+
+# --- sync_metadata_edges (integration tests with DB) ---
+
+
+async def _get_metadata_edges(db: AsyncSession, source_id: int) -> list[dict]:
+    """Return all metadata edges (field_name NOT NULL) for source_id as plain dicts."""
+    rows = await db.execute(
+        text(
+            "SELECT target_id, field_name, resolved_via FROM article_links"
+            " WHERE source_id = :source_id AND field_name IS NOT NULL"
+            " ORDER BY field_name, target_id"
+        ),
+        {"source_id": source_id},
+    )
+    return [dict(r._mapping) for r in rows]
+
+
+@pytest.fixture
+async def metadata_edge_pair(db: AsyncSession, user: User) -> tuple:
+    """A (target, source, index) triple for metadata edge integration tests."""
+    target = await make_article(
+        db,
+        user,
+        slug="gotham",
+        article_type=ArticleType.location,
+        metadata_=_LOCATION_META,
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="batman",
+        article_type=ArticleType.profile,
+        metadata_=_PROFILE_META,
+    )
+    return target, source, {"gotham": target.id}
+
+
+async def test_sync_metadata_edges_writes_to_db(
+    db: AsyncSession, metadata_edge_pair: tuple
+) -> None:
+    """Resolved metadata edges are persisted to article_links."""
+    target, source, index = metadata_edge_pair
+    await sync_metadata_edges(
+        source.id,
+        ArticleType.profile,
+        {**_PROFILE_META, "base_of_operations": "gotham"},
+        index,
+        db,
+    )
+    await db.commit()
+    assert await _get_metadata_edges(db, source.id) == [
+        {
+            "target_id": target.id,
+            "field_name": "base_of_operations",
+            "resolved_via": "gotham",
+        }
+    ]
+
+
+async def test_sync_metadata_edges_replaces_on_resave(
+    db: AsyncSession, metadata_edge_pair: tuple
+) -> None:
+    """Re-syncing clears stale metadata edges before writing fresh ones."""
+    _, source, index = metadata_edge_pair
+    await sync_metadata_edges(
+        source.id,
+        ArticleType.profile,
+        {**_PROFILE_META, "base_of_operations": "gotham"},
+        index,
+        db,
+    )
+    await db.commit()
+    await sync_metadata_edges(source.id, ArticleType.profile, _PROFILE_META, index, db)
+    await db.commit()
+    assert await _get_metadata_edges(db, source.id) == []

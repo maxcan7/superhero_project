@@ -108,7 +108,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
   - Unresolved: render as a red link — `<a href="/articles/new?slug={normalized}" class="red-link">Entity Name</a>` — styled in red/muted to signal the article doesn't exist yet, but clickable to pre-fill the article creation form with that slug
   `superhero_project/domain/links.py superhero_project/routers/articles.py`
 
-- [ ] **4.** `feat: add metadata edge extractor`
+- [x] **4.** `feat: add metadata edge extractor`
   Walks the domain metadata fields that carry relationship values and writes typed edges using the same alias index.
 
   Also refactor the per-type alias extraction in `build_alias_index` (Task 2) and the new metadata edge extraction into a shared per-type handler registry in `links.py`, so both passes use the same extension point.

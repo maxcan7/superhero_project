@@ -181,6 +181,7 @@ class ArticleLink(Base):
     edges."""
 
     __tablename__ = "article_links"
+    __table_args__ = (UniqueConstraint("source_id", "target_id", "field_name"),)
 
     id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
     source_id: Mapped[int] = mapped_column(
