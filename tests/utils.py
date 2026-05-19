@@ -21,6 +21,20 @@ from superhero_project.domain.profile import ProfileMetadata
 from superhero_project.domain.tech import TechMetadata
 
 DISAMBIG_META: dict = DisambiguationMetadata().model_dump()
+
+# Representative outgoing-edge dicts (same shape as fetch_outgoing_links rows).
+WIKILINK_EDGE: dict[str, str | None] = {
+    "slug": "gotham",
+    "article_type": "location",
+    "field_name": None,
+    "resolved_via": "gotham",
+}
+GOTHAM_EDGE: dict[str, str | None] = {
+    "slug": "gotham",
+    "article_type": "location",
+    "field_name": "base_of_operations",
+    "resolved_via": "gotham",
+}
 ORG_META: dict = OrgMetadata().model_dump()
 PROFILE_META: dict = ProfileMetadata().model_dump()
 EVENT_META: dict = EventMetadata().model_dump()

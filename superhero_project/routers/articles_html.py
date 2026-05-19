@@ -22,7 +22,7 @@ from superhero_project.db.models import Vote
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
-from superhero_project.domain.links import build_infobox_links
+from superhero_project.domain.infobox import build_infobox_links
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import fetch_incoming_links
 from superhero_project.domain.links import fetch_outgoing_links

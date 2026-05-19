@@ -8,15 +8,12 @@ from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.domain.links import AliasIndex
-from superhero_project.domain.links import ResolvedLink
 from superhero_project.domain.links import SlugMap
-from superhero_project.domain.links import UnresolvedLink
 from superhero_project.domain.links import _extract_metadata_edges
 from superhero_project.domain.links import _find_articles_referencing
 from superhero_project.domain.links import backfill_on_alias_change
 from superhero_project.domain.links import backfill_on_publish
 from superhero_project.domain.links import build_alias_index
-from superhero_project.domain.links import build_infobox_links
 from superhero_project.domain.links import fetch_incoming_links
 from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.domain.links import render_wikilinks
@@ -24,11 +21,13 @@ from superhero_project.domain.links import sync_metadata_edges
 from superhero_project.domain.links import sync_wikilink_edges
 from tests.utils import COMIC_META
 from tests.utils import EVENT_META
+from tests.utils import GOTHAM_EDGE
 from tests.utils import LOCATION_META
 from tests.utils import LORE_META
 from tests.utils import ORG_META
 from tests.utils import PROFILE_META
 from tests.utils import TECH_META
+from tests.utils import WIKILINK_EDGE
 from tests.utils import make_article
 
 pytestmark = pytest.mark.anyio
@@ -419,49 +418,14 @@ async def test_sync_metadata_edges_replaces_on_resave(
 @pytest.mark.parametrize(
     ("content", "meta_override", "expected"),
     [
+        pytest.param("[[gotham]]", {}, [WIKILINK_EDGE], id="wikilink-edge"),
         pytest.param(
-            "[[gotham]]",
-            {},
-            [
-                {
-                    "slug": "gotham",
-                    "article_type": "location",
-                    "field_name": None,
-                    "resolved_via": "gotham",
-                }
-            ],
-            id="wikilink-edge",
-        ),
-        pytest.param(
-            "",
-            {"base_of_operations": "gotham"},
-            [
-                {
-                    "slug": "gotham",
-                    "article_type": "location",
-                    "field_name": "base_of_operations",
-                    "resolved_via": "gotham",
-                }
-            ],
-            id="metadata-edge",
+            "", {"base_of_operations": "gotham"}, [GOTHAM_EDGE], id="metadata-edge"
         ),
         pytest.param(
             "[[gotham]]",
             {"base_of_operations": "gotham"},
-            [
-                {
-                    "slug": "gotham",
-                    "article_type": "location",
-                    "field_name": None,
-                    "resolved_via": "gotham",
-                },
-                {
-                    "slug": "gotham",
-                    "article_type": "location",
-                    "field_name": "base_of_operations",
-                    "resolved_via": "gotham",
-                },
-            ],
+            [WIKILINK_EDGE, GOTHAM_EDGE],
             id="wikilink-and-metadata-edge",
         ),
     ],
@@ -710,113 +674,3 @@ async def test_backfill_on_alias_change_noop_for_type_without_aliases(
 ) -> None:
     """backfill_on_alias_change is a no-op for article types with no alias fields."""
     await backfill_on_alias_change(999, {}, {}, ArticleType.event, db)
-
-
-# --- build_infobox_links ---
-
-_AVENGERS_EDGE = {
-    "slug": "avengers",
-    "article_type": "org",
-    "field_name": "affiliation",
-    "resolved_via": "avengers",
-}
-_GOTHAM_EDGE = {
-    "slug": "gotham",
-    "article_type": "location",
-    "field_name": "base_of_operations",
-    "resolved_via": "gotham",
-}
-_WIKILINK_EDGE = {
-    "slug": "gotham",
-    "article_type": "location",
-    "field_name": None,
-    "resolved_via": "gotham",
-}
-
-
-@pytest.mark.parametrize(
-    ("article_type", "outgoing", "metadata", "expected"),
-    [
-        pytest.param(
-            ArticleType.disambiguation,
-            [],
-            {},
-            {},
-            id="no-handler-returns-empty",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [_AVENGERS_EDGE],
-            {"affiliation": ["avengers"]},
-            {
-                "affiliation": [
-                    ResolvedLink(resolved=True, slug="avengers", article_type="org")
-                ]
-            },
-            id="resolved-list-field",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [],
-            {"affiliation": ["Unknown Org"]},
-            {"affiliation": [UnresolvedLink(resolved=False, label="Unknown Org")]},
-            id="unresolved-list-field",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [_AVENGERS_EDGE],
-            {"affiliation": ["avengers", "Unknown Org"]},
-            {
-                "affiliation": [
-                    ResolvedLink(resolved=True, slug="avengers", article_type="org"),
-                    UnresolvedLink(resolved=False, label="Unknown Org"),
-                ]
-            },
-            id="mixed-resolved-and-unresolved",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [_GOTHAM_EDGE],
-            {"base_of_operations": "gotham"},
-            {
-                "base_of_operations": [
-                    ResolvedLink(resolved=True, slug="gotham", article_type="location")
-                ]
-            },
-            id="resolved-single-field",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [],
-            {"base_of_operations": "unknown city"},
-            {
-                "base_of_operations": [
-                    UnresolvedLink(resolved=False, label="unknown city")
-                ]
-            },
-            id="unresolved-single-field",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [],
-            {"affiliation": []},
-            {},
-            id="empty-metadata-field-omitted",
-        ),
-        pytest.param(
-            ArticleType.profile,
-            [_WIKILINK_EDGE],
-            {"base_of_operations": "gotham"},
-            {"base_of_operations": [UnresolvedLink(resolved=False, label="gotham")]},
-            id="wikilink-edges-ignored",
-        ),
-    ],
-)
-def test_build_infobox_links(
-    article_type: ArticleType,
-    outgoing: list[dict],
-    metadata: dict,
-    expected: dict,
-) -> None:
-    """build_infobox_links maps outgoing edges and metadata to typed link items."""
-    assert build_infobox_links(outgoing, article_type, metadata) == expected
