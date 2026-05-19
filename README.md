@@ -32,3 +32,12 @@ uv run pytest
 ## Spec
 
 See [`spec/idea/MVP.md`](spec/idea/MVP.md) for the full design and [`spec/milestone/`](spec/milestone/) for the build plan.
+
+## License
+
+This project uses a dual-license structure:
+
+- **Source code** — [MIT License](LICENSE)
+- **Creative content** (articles, lore, world-building) — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
+See [LICENSE](LICENSE) for full terms.
