@@ -1,5 +1,5 @@
 # M11: Infoboxes & Derived Views
-Status: planned
+Status: completed
 
 Structured rendering of domain metadata as visual infoboxes, plus derived aggregation views generated entirely from the link graph. Requires M10.
 
@@ -139,7 +139,7 @@ M10 established the edge table. M11 is the surface area that makes it visible an
 
   `superhero_project/routers/articles_html.py superhero_project/templates/`
 
-- [ ] **4.** `feat: add metadata filters to search`
+- [x] **4.** `feat: add metadata filters to search`
   Extend the search endpoint (`articles_html.py:search_articles`) with optional query params for structured filtering. Filters use JSONB containment (`@>`) against the `metadata` column. `disambiguation` articles remain included in search results (they appear when a query matches the shared alias) but are excluded if `?type=` is specified and the value is not `disambiguation`.
 
   New params:

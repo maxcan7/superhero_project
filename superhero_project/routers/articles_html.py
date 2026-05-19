@@ -2,20 +2,27 @@
 
 from itertools import groupby as _groupby
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi import HTTPException
+from fastapi import Query
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import ColumnElement
+from sqlalchemy import Select
 from sqlalchemy import func
 from sqlalchemy import select
+from sqlalchemy import type_coerce
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.responses import Response
 
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
+from superhero_project.db.models import ArticleType
 from superhero_project.db.models import Comment
 from superhero_project.db.models import User
 from superhero_project.db.models import Vote
@@ -114,36 +121,134 @@ async def new_article_form(request: Request, db: DB) -> Response:
     )
 
 
+_FILTER_CTX_DEFAULTS: dict[str, str | None] = {
+    "type_filter": None,
+    "status": None,
+    "powers": None,
+    "location_type": None,
+    "org_type": None,
+}
+
+
 @router.get("/search", response_class=HTMLResponse)
 async def search_form(request: Request, db: DB) -> Response:
     """Render the search form."""
     user = await get_current_user_opt(request, db)
     return _templates.TemplateResponse(
-        request=request, name="search.html", context={"user": user, "results": None}
+        request=request,
+        name="search.html",
+        context={"user": user, "results": None, "q": None, **_FILTER_CTX_DEFAULTS},
+    )
+
+
+def _jsonb_contains(key: str, val: object) -> ColumnElement[bool]:
+    """Return a JSONB containment condition for a single metadata key/value."""
+    return Article.metadata_.op("@>")(type_coerce({key: val}, JSONB()))
+
+
+def _type_condition(type_filter: str) -> ColumnElement[bool] | None:
+    """Return an article_type equality condition, or None if type_filter is invalid."""
+    try:
+        return Article.article_type == ArticleType(type_filter.lower())
+    except ValueError:
+        return None
+
+
+def _fts_condition(q: str) -> tuple[ColumnElement[bool], ColumnElement[Any]]:
+    """Return (match condition, rank order-by) for a full-text query."""
+    tsquery = func.plainto_tsquery("english", q)
+    return (
+        Article.search_vector.op("@@")(tsquery),
+        func.ts_rank(Article.search_vector, tsquery).desc(),
+    )
+
+
+def _metadata_conditions(
+    status: str | None,
+    powers: str | None,
+    location_type: str | None,
+    org_type: str | None,
+) -> list[ColumnElement[bool]]:
+    """Return JSONB containment conditions for all active metadata filters."""
+    conditions: list[ColumnElement[bool]] = []
+    for val, key in [
+        (status, "status"),
+        (location_type, "location_type"),
+        (org_type, "org_type"),
+    ]:
+        if val is not None:
+            conditions.append(_jsonb_contains(key, val.lower()))
+    if powers is not None:
+        conditions.append(_jsonb_contains("powers", [powers.lower()]))
+    return conditions
+
+
+def _build_search_stmt(
+    q: str | None,
+    type_filter: str | None,
+    status: str | None,
+    powers: str | None,
+    location_type: str | None,
+    org_type: str | None,
+) -> Select[tuple[Article]]:
+    """Assemble a SELECT statement from the active query and filter params."""
+    conditions: list[ColumnElement[bool]] = [Article.status == ArticleStatus.published]
+
+    if type_filter is not None:
+        if (cond := _type_condition(type_filter)) is not None:
+            conditions.append(cond)
+
+    order_by: ColumnElement[Any] = Article.slug.asc()
+    if q is not None:
+        fts_cond, order_by = _fts_condition(q)
+        conditions.append(fts_cond)
+
+    conditions.extend(_metadata_conditions(status, powers, location_type, org_type))
+
+    return (
+        select(Article)
+        .where(*conditions)
+        .order_by(order_by)
+        .options(selectinload(Article.tags))
     )
 
 
 @router.get("/search/results", response_class=HTMLResponse)
-async def search_articles(request: Request, db: DB, q: str) -> Response:
-    """Full-text search over published articles, ranked by relevance."""
-    tsquery = func.plainto_tsquery("english", q)
-    stmt = (
-        select(Article)
-        .where(
-            Article.status == ArticleStatus.published,
-            Article.search_vector.op("@@")(tsquery),
+async def search_articles(
+    request: Request,
+    db: DB,
+    q: str | None = None,
+    type_filter: str | None = Query(default=None, alias="type"),
+    status: str | None = None,
+    powers: str | None = None,
+    location_type: str | None = None,
+    org_type: str | None = None,
+) -> Response:
+    """Search published articles by full-text query and/or metadata filters."""
+    user = await get_current_user_opt(request, db)
+    filter_ctx = {
+        "q": q,
+        "type_filter": type_filter,
+        "status": status,
+        "powers": powers,
+        "location_type": location_type,
+        "org_type": org_type,
+    }
+    if all(v is None for v in filter_ctx.values()):
+        return _templates.TemplateResponse(
+            request=request,
+            name="search.html",
+            context={"user": user, "results": None, **filter_ctx},
         )
-        .order_by(func.ts_rank(Article.search_vector, tsquery).desc())
-        .options(selectinload(Article.tags))
-    )
+
+    stmt = _build_search_stmt(q, type_filter, status, powers, location_type, org_type)
     index, slug_map = await build_link_maps(db)
     articles = (await db.execute(stmt)).scalars().all()
     results = [_to_out(a, index, slug_map) for a in articles]
-    user = await get_current_user_opt(request, db)
     return _templates.TemplateResponse(
         request=request,
         name="search.html",
-        context={"q": q, "results": results, "user": user},
+        context={"results": results, "user": user, **filter_ctx},
     )
 
 

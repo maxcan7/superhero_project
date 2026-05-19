@@ -5,17 +5,90 @@
 {% block content %}
 <div class="search-layout">
 
-  <section class="search-form">
-    <h1>Search</h1>
-    <form method="get" action="/articles/search/results">
-      <input type="search" name="q" value="{{ q }}" placeholder="Search articles…" autofocus>
-      <button type="submit">Search</button>
-    </form>
-  </section>
+  <aside class="search-sidebar">
+    <h2 class="search-sidebar-heading">Search &amp; Filter</h2>
+    <form method="get" action="/articles/search/results" class="search-filter-form">
 
-  {% if results is not none %}
-    <section class="search-results">
-      <h2>Results for "{{ q }}"</h2>
+      <div class="form-group">
+        <label class="form-label" for="q">Search</label>
+        <input class="form-input" type="search" id="q" name="q"
+               value="{{ q or '' }}" placeholder="Keywords…">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="type">Type</label>
+        <select class="form-select" id="type" name="type">
+          <option value="">All types</option>
+          {% for t in ["profile", "event", "org", "location", "tech", "lore", "comic"] %}
+            <option value="{{ t }}"
+              {% if type_filter == t %}selected{% endif %}>
+              {{ t | capitalize }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if not type_filter or type_filter in ["profile", "location", "org", "tech", "comic"] %}
+      <div class="form-group">
+        <label class="form-label" for="status">Status</label>
+        <input class="form-input" type="text" id="status" name="status"
+               value="{{ status or '' }}" placeholder="e.g. active">
+      </div>
+      {% endif %}
+
+      {% if type_filter == "profile" %}
+      <div class="form-group">
+        <label class="form-label" for="powers">Powers</label>
+        <input class="form-input" type="text" id="powers" name="powers"
+               value="{{ powers or '' }}" placeholder="e.g. flight">
+      </div>
+      {% endif %}
+
+      {% if type_filter == "location" %}
+      <div class="form-group">
+        <label class="form-label" for="location_type">Location type</label>
+        <select class="form-select" id="location_type" name="location_type">
+          <option value="">Any</option>
+          {% for lt in ["city", "base", "zone", "dimension", "other"] %}
+            <option value="{{ lt }}"
+              {% if location_type == lt %}selected{% endif %}>
+              {{ lt | capitalize }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      {% if type_filter == "org" %}
+      <div class="form-group">
+        <label class="form-label" for="org_type">Org type</label>
+        <select class="form-select" id="org_type" name="org_type">
+          <option value="">Any</option>
+          {% for ot in ["team", "agency", "corporation", "cult", "publisher", "other"] %}
+            <option value="{{ ot }}"
+              {% if org_type == ot %}selected{% endif %}>
+              {{ ot | capitalize }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <button type="submit" class="btn btn-primary search-submit">Search</button>
+
+      {% if type_filter or status or powers or location_type or org_type %}
+      <a href="/articles/search/results{% if q %}?q={{ q }}{% endif %}"
+         class="search-clear-link">Clear filters</a>
+      {% endif %}
+
+    </form>
+  </aside>
+
+  <section class="search-main">
+    {% if results is not none %}
+      <h1 class="search-results-heading">
+        {% if q %}Results for &#8220;{{ q }}&#8221;{% else %}Filtered results{% endif %}
+      </h1>
       {% if results %}
         <ul class="article-list">
           {% for article in results %}
@@ -35,10 +108,12 @@
           {% endfor %}
         </ul>
       {% else %}
-        <p class="empty-state">No results for "{{ q }}".</p>
+        <p class="empty-state">No results.</p>
       {% endif %}
-    </section>
-  {% endif %}
+    {% else %}
+      <p class="search-prompt">Enter a search term or select filters.</p>
+    {% endif %}
+  </section>
 
 </div>
 {% endblock %}

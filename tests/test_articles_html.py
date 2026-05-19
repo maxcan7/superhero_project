@@ -204,10 +204,160 @@ async def test_search_results(
     assert expected_text in resp.text
 
 
-async def test_search_results_missing_q(client: AsyncClient) -> None:
-    """GET /articles/search/results without q returns 422."""
+async def test_search_results_no_params(client: AsyncClient) -> None:
+    """GET /articles/search/results with no params returns 200 without results."""
     resp = await client.get("/articles/search/results")
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert "Enter a search term" in resp.text
+
+
+@pytest.mark.parametrize(
+    ("params", "articles", "expected_in", "expected_out"),
+    [
+        pytest.param(
+            {"type": "profile"},
+            [
+                ("hero-alpha", ArticleType.profile, PROFILE_META),
+                ("org-alpha", ArticleType.org, ORG_META),
+            ],
+            "hero-alpha",
+            "org-alpha",
+            id="type",
+        ),
+        pytest.param(
+            {"status": "active"},
+            [
+                (
+                    "active-hero",
+                    ArticleType.profile,
+                    {**PROFILE_META, "status": "active"},
+                ),
+                ("unknown-hero", ArticleType.profile, PROFILE_META),
+            ],
+            "active-hero",
+            "unknown-hero",
+            id="status",
+        ),
+        pytest.param(
+            {"powers": "flight"},
+            [
+                ("flyer", ArticleType.profile, {**PROFILE_META, "powers": ["flight"]}),
+                ("no-powers", ArticleType.profile, PROFILE_META),
+            ],
+            "flyer",
+            "no-powers",
+            id="powers",
+        ),
+        pytest.param(
+            {"location_type": "city"},
+            [
+                (
+                    "city-loc",
+                    ArticleType.location,
+                    {**LOCATION_META, "location_type": "city"},
+                ),
+                (
+                    "base-loc",
+                    ArticleType.location,
+                    {**LOCATION_META, "location_type": "base"},
+                ),
+            ],
+            "city-loc",
+            "base-loc",
+            id="location_type",
+        ),
+        pytest.param(
+            {"org_type": "team"},
+            [
+                ("team-org", ArticleType.org, {**ORG_META, "org_type": "team"}),
+                ("agency-org", ArticleType.org, {**ORG_META, "org_type": "agency"}),
+            ],
+            "team-org",
+            "agency-org",
+            id="org_type",
+        ),
+    ],
+)
+async def test_search_filter(
+    client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+    params: dict[str, str],
+    articles: list[tuple[str, ArticleType, dict]],
+    expected_in: str,
+    expected_out: str,
+) -> None:
+    """Metadata filter params narrow results to matching articles only."""
+    for slug, atype, meta in articles:
+        await make_article(db, user, slug=slug, article_type=atype, metadata_=meta)
+    resp = await client.get("/articles/search/results", params=params)
+    assert resp.status_code == 200
+    assert expected_in in resp.text
+    assert expected_out not in resp.text
+
+
+async def test_search_filter_composed(
+    client: AsyncClient, db: AsyncSession, user: User
+) -> None:
+    """Type + status filters compose as AND."""
+    await make_article(
+        db,
+        user,
+        slug="active-hero",
+        article_type=ArticleType.profile,
+        metadata_={**PROFILE_META, "status": "active"},
+    )
+    await make_article(
+        db,
+        user,
+        slug="active-org",
+        article_type=ArticleType.org,
+        metadata_={**ORG_META, "status": "active"},
+    )
+    await make_article(
+        db,
+        user,
+        slug="unknown-hero",
+        article_type=ArticleType.profile,
+        metadata_=PROFILE_META,
+    )
+    resp = await client.get("/articles/search/results?type=profile&status=active")
+    assert resp.status_code == 200
+    assert "active-hero" in resp.text
+    assert "active-org" not in resp.text
+    assert "unknown-hero" not in resp.text
+
+
+async def test_search_filter_case_insensitive(
+    client: AsyncClient, db: AsyncSession, user: User
+) -> None:
+    """Filter values are lowercased before querying."""
+    await make_article(
+        db,
+        user,
+        slug="active-hero",
+        article_type=ArticleType.profile,
+        metadata_={**PROFILE_META, "status": "active"},
+    )
+    resp = await client.get("/articles/search/results?status=Active")
+    assert resp.status_code == 200
+    assert "active-hero" in resp.text
+
+
+async def test_search_filter_invalid_type(
+    client: AsyncClient, db: AsyncSession, user: User
+) -> None:
+    """An unrecognised ?type= value is silently ignored and returns all results."""
+    await make_article(
+        db,
+        user,
+        slug="hero-one",
+        article_type=ArticleType.profile,
+        metadata_=PROFILE_META,
+    )
+    resp = await client.get("/articles/search/results?type=bogus")
+    assert resp.status_code == 200
+    assert "hero-one" in resp.text
 
 
 # ── Editor HTML views ──────────────────────────────────────────────────────────
