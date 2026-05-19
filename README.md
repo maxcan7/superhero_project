@@ -1,6 +1,9 @@
 # Superhero Universe Wiki
 
-A collaborative wiki for a shared superhero fiction universe. Contributors write and edit articles covering heroes, villains, events, organizations, locations, and lore.
+A collaborative wiki for a shared superhero fiction universe. The wiki covers two layers simultaneously, like Wikipedia's treatment of comics: **in-universe** content (what happens within the fiction) and **meta** content (the "real-world" publication history of the comics that tell it). Contributors write and edit articles covering heroes, villains, events, organizations, locations, lore, and the comic series themselves.
+
+
+**Status:** Work in progress — not yet deployed to production.
 
 Built with FastAPI, SQLAlchemy, Jinja2, GitHub OAuth, and PostgreSQL. Self-hosted on NixOS.
 
