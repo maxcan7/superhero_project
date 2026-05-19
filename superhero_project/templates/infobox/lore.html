@@ -1,0 +1,24 @@
+<dl class="infobox">
+  {% if article.metadata.category %}
+  <div class="infobox-row">
+    <dt>Category</dt>
+    <dd><span class="meta-chip">{{ article.metadata.category }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% set related = infobox_links.get('related_articles', []) %}
+  {% if related %}
+  <div class="infobox-row">
+    <dt>Related Articles</dt>
+    <dd><div class="meta-link-list">
+      {% for item in related %}
+        {% if item.resolved %}
+          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+        {% else %}
+          <span class="meta-plain">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+</dl>

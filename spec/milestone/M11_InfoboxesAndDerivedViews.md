@@ -35,7 +35,7 @@ M10 established the edge table. M11 is the surface area that makes it visible an
 
 ## Tasks
 
-- [ ] **1.** `feat: add per-type infobox template fragments`
+- [x] **1.** `feat: add per-type infobox template fragments`
   One Jinja2 fragment per article type under `templates/infobox/`. The article template includes the appropriate fragment based on `article.article_type`. Fields are rendered as specific UI elements rather than raw key/value pairs.
 
   Rendering rules per type:
@@ -82,13 +82,17 @@ M10 established the edge table. M11 is the surface area that makes it visible an
 
   Comic:
     comic_type         → chip
-    publishers         → linked list (via alias index; plain text if unresolved)
+    publishers         → linked list (via article_links; plain text if unresolved)
     first_issue        → plain text
     last_issue         → plain text
     status             → colored chip: ongoing=green, completed=grey, cancelled=red, unknown=grey
+
+  Disambiguation:
+    (no infobox — DisambiguationMetadata has no fields; the article template
+    skips the infobox fragment entirely for this type)
   ```
 
-  "Linked list" means each value is resolved via M10's alias index at render time — if a slug is found, render as `<a href>`, otherwise as plain text. Fields with no value set render as "—" or are omitted entirely.
+  "Linked list" means: for resolved values, use the pre-resolved edges from `article_links` to get the target slug and render as `<a href>`; for values that did not resolve at save time, fall back to the raw metadata string as plain text. Fields with no value set render as "—" or are omitted entirely.
   `superhero_project/templates/infobox/ superhero_project/templates/article.html superhero_project/static/css/`
 
 - [ ] **2.** `feat: add org member roster derived view`
@@ -106,7 +110,7 @@ M10 established the edge table. M11 is the surface area that makes it visible an
   ```
 
   Display: grouped by profile status (active first), each entry showing designation + aliases chip row. Standalone page allows pagination if the roster grows.
-  `superhero_project/routers/articles.py superhero_project/templates/`
+  `superhero_project/routers/articles_html.py superhero_project/templates/`
 
 - [ ] **3.** `feat: add location activity derived view`
   Standalone route at `/articles/{slug}/activity` with two sub-lists derived from `article_links`. Linked from the location article page.
@@ -133,10 +137,10 @@ M10 established the edge table. M11 is the surface area that makes it visible an
     AND a.status = 'published';
   ```
 
-  `superhero_project/routers/articles.py superhero_project/templates/`
+  `superhero_project/routers/articles_html.py superhero_project/templates/`
 
 - [ ] **4.** `feat: add metadata filters to search`
-  Extend the M6 search endpoint with optional query params for structured filtering. Filters use JSONB containment (`@>`) against the `metadata` column.
+  Extend the search endpoint (`articles_html.py:search_articles`) with optional query params for structured filtering. Filters use JSONB containment (`@>`) against the `metadata` column. `disambiguation` articles remain included in search results (they appear when a query matches the shared alias) but are excluded if `?type=` is specified and the value is not `disambiguation`.
 
   New params:
   ```
@@ -150,4 +154,4 @@ M10 established the edge table. M11 is the surface area that makes it visible an
   Filters compose as AND. Full-text search term remains optional — filters can be used standalone. Results page gains a filter sidebar with type-aware controls (powers filter only shown when type=profile, etc.).
 
   Filter params are lowercased before the JSONB query to match the normalized stored values (e.g. `?powers=Flight` → `"flight"`).
-  `superhero_project/routers/articles.py superhero_project/templates/`
+  `superhero_project/routers/articles_html.py superhero_project/templates/`

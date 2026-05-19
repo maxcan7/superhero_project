@@ -1,0 +1,57 @@
+<dl class="infobox">
+  {% if article.metadata.org_type %}
+  <div class="infobox-row">
+    <dt>Type</dt>
+    <dd><span class="meta-chip">{{ article.metadata.org_type }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.aliases %}
+  <div class="infobox-row">
+    <dt>Aliases</dt>
+    <dd><div class="meta-badges">
+      {% for alias in article.metadata.aliases %}
+        <span class="meta-badge">{{ alias }}</span>
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.founded %}
+  <div class="infobox-row">
+    <dt>Founded</dt>
+    <dd>{{ article.metadata.founded }}</dd>
+  </div>
+  {% endif %}
+
+  {% set hq = infobox_links.get('headquarters', []) %}
+  {% if hq %}
+  <div class="infobox-row">
+    <dt>Headquarters</dt>
+    <dd>{% for item in hq %}{% if item.resolved %}<a href="/articles/{{ item.slug }}">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.status %}
+  <div class="infobox-row">
+    <dt>Status</dt>
+    <dd><span class="meta-chip meta-chip--{{ article.metadata.status }}">{{ article.metadata.status }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% set affil = infobox_links.get('affiliation', []) %}
+  {% if affil %}
+  <div class="infobox-row">
+    <dt>Affiliation</dt>
+    <dd><div class="meta-link-list">
+      {% for item in affil %}
+        {% if item.resolved %}
+          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+        {% else %}
+          <span class="meta-plain">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+</dl>

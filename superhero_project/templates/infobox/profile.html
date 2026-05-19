@@ -1,0 +1,61 @@
+<dl class="infobox">
+  {% if article.metadata.aliases %}
+  <div class="infobox-row">
+    <dt>Aliases</dt>
+    <dd><div class="meta-badges">
+      {% for alias in article.metadata.aliases %}
+        <span class="meta-badge">{{ alias }}</span>
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+
+  {% set affil = infobox_links.get('affiliation', []) %}
+  {% if affil %}
+  <div class="infobox-row">
+    <dt>Affiliation</dt>
+    <dd><div class="meta-link-list">
+      {% for item in affil %}
+        {% if item.resolved %}
+          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+        {% else %}
+          <span class="meta-plain">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.powers %}
+  <div class="infobox-row">
+    <dt>Powers</dt>
+    <dd><div class="meta-badges">
+      {% for power in article.metadata.powers %}
+        <span class="meta-badge">{{ power }}</span>
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.status %}
+  <div class="infobox-row">
+    <dt>Status</dt>
+    <dd><span class="meta-chip meta-chip--{{ article.metadata.status }}">{{ article.metadata.status }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% set boo = infobox_links.get('base_of_operations', []) %}
+  {% if boo %}
+  <div class="infobox-row">
+    <dt>Base of Operations</dt>
+    <dd>{% for item in boo %}{% if item.resolved %}<a href="/articles/{{ item.slug }}">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.first_appearance %}
+  <div class="infobox-row">
+    <dt>First Appearance</dt>
+    <dd>{{ article.metadata.first_appearance }}</dd>
+  </div>
+  {% endif %}
+</dl>

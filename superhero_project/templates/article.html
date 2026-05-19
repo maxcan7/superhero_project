@@ -13,22 +13,9 @@
       <p class="designation">{{ article.designation }}</p>
     {% endif %}
 
-    <dl class="meta-list">
-      {% for key, value in article.metadata.items() %}
-        {% if value is not none and value != [] and value != "" %}
-          <div class="meta-row">
-            <dt>{{ key | replace("_", " ") | title }}</dt>
-            <dd>
-              {% if value is iterable and value is not string %}
-                {{ value | join(", ") }}
-              {% else %}
-                {{ value }}
-              {% endif %}
-            </dd>
-          </div>
-        {% endif %}
-      {% endfor %}
-    </dl>
+    {% if article.article_type != 'disambiguation' %}
+      {% include "infobox/" + article.article_type + ".html" %}
+    {% endif %}
 
     {% if article.tags %}
       <div class="tag-list">

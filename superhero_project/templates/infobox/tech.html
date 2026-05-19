@@ -1,0 +1,30 @@
+<dl class="infobox">
+  {% if article.metadata.tech_type %}
+  <div class="infobox-row">
+    <dt>Type</dt>
+    <dd><span class="meta-chip">{{ article.metadata.tech_type }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.origin %}
+  <div class="infobox-row">
+    <dt>Origin</dt>
+    <dd>{{ article.metadata.origin }}</dd>
+  </div>
+  {% endif %}
+
+  {% set holder = infobox_links.get('current_holder', []) %}
+  {% if holder %}
+  <div class="infobox-row">
+    <dt>Current Holder</dt>
+    <dd>{% for item in holder %}{% if item.resolved %}<a href="/articles/{{ item.slug }}">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.status %}
+  <div class="infobox-row">
+    <dt>Status</dt>
+    <dd><span class="meta-chip meta-chip--{{ article.metadata.status }}">{{ article.metadata.status }}</span></dd>
+  </div>
+  {% endif %}
+</dl>

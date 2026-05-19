@@ -1,0 +1,39 @@
+<dl class="infobox">
+  {% if article.metadata.event_date %}
+  <div class="infobox-row">
+    <dt>Date</dt>
+    <dd>{{ article.metadata.event_date }}</dd>
+  </div>
+  {% endif %}
+
+  {% set loc = infobox_links.get('location', []) %}
+  {% if loc %}
+  <div class="infobox-row">
+    <dt>Location</dt>
+    <dd>{% for item in loc %}{% if item.resolved %}<a href="/articles/{{ item.slug }}">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
+  </div>
+  {% endif %}
+
+  {% set participants = infobox_links.get('participants', []) %}
+  {% if participants %}
+  <div class="infobox-row">
+    <dt>Participants</dt>
+    <dd><div class="meta-link-list">
+      {% for item in participants %}
+        {% if item.resolved %}
+          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+        {% else %}
+          <span class="meta-plain">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.outcome %}
+  <div class="infobox-row">
+    <dt>Outcome</dt>
+    <dd>{{ article.metadata.outcome }}</dd>
+  </div>
+  {% endif %}
+</dl>

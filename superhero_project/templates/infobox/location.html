@@ -1,0 +1,38 @@
+<dl class="infobox">
+  {% if article.metadata.location_type %}
+  <div class="infobox-row">
+    <dt>Type</dt>
+    <dd><span class="meta-chip">{{ article.metadata.location_type }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.region %}
+  <div class="infobox-row">
+    <dt>Region</dt>
+    <dd>{{ article.metadata.region }}</dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.status %}
+  <div class="infobox-row">
+    <dt>Status</dt>
+    <dd><span class="meta-chip meta-chip--{{ article.metadata.status }}">{{ article.metadata.status }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% set residents = infobox_links.get('notable_residents', []) %}
+  {% if residents %}
+  <div class="infobox-row">
+    <dt>Notable Residents</dt>
+    <dd><div class="meta-link-list">
+      {% for item in residents %}
+        {% if item.resolved %}
+          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+        {% else %}
+          <span class="meta-plain">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+</dl>

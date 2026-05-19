@@ -22,6 +22,7 @@ from superhero_project.db.models import Vote
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
+from superhero_project.domain.links import build_infobox_links
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import fetch_incoming_links
 from superhero_project.domain.links import fetch_outgoing_links
@@ -171,6 +172,9 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
             "comments": await _load_comments(article_db.id, db),
             "outgoing_links": _group_outgoing_links(outgoing),
             "incoming_links": incoming,
+            "infobox_links": build_infobox_links(
+                outgoing, article_db.article_type, article_db.metadata_
+            ),
         },
     )
 

@@ -1,0 +1,45 @@
+<dl class="infobox">
+  {% if article.metadata.comic_type %}
+  <div class="infobox-row">
+    <dt>Type</dt>
+    <dd><span class="meta-chip">{{ article.metadata.comic_type }}</span></dd>
+  </div>
+  {% endif %}
+
+  {% set publishers = infobox_links.get('publishers', []) %}
+  {% if publishers %}
+  <div class="infobox-row">
+    <dt>Publishers</dt>
+    <dd><div class="meta-link-list">
+      {% for item in publishers %}
+        {% if item.resolved %}
+          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+        {% else %}
+          <span class="meta-plain">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </div></dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.first_issue %}
+  <div class="infobox-row">
+    <dt>First Issue</dt>
+    <dd>{{ article.metadata.first_issue }}</dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.last_issue %}
+  <div class="infobox-row">
+    <dt>Last Issue</dt>
+    <dd>{{ article.metadata.last_issue }}</dd>
+  </div>
+  {% endif %}
+
+  {% if article.metadata.status %}
+  <div class="infobox-row">
+    <dt>Status</dt>
+    <dd><span class="meta-chip meta-chip--{{ article.metadata.status }}">{{ article.metadata.status }}</span></dd>
+  </div>
+  {% endif %}
+</dl>

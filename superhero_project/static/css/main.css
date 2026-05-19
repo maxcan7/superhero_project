@@ -593,6 +593,85 @@ a:hover { color: var(--color-accent-dark); text-decoration: underline; }
 .status-badge--published { background: #d1fae5; color: #065f46; }
 .status-badge--rejected { background: #fee2e2; color: #991b1b; }
 
+/* ── Infobox ────────────────────────────────────────────────────────────────── */
+.infobox { margin-top: 0.75rem; }
+
+.infobox-row {
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.infobox-row:first-child { border-top: none; }
+
+.infobox-row dt {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+.infobox-row dd { margin-top: 0.1rem; }
+
+.meta-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.meta-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--color-badge-bg);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.meta-chip {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: var(--color-badge-bg);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.04em;
+}
+
+.meta-chip--active,
+.meta-chip--ongoing   { background: #d1fae5; color: #065f46; }
+
+.meta-chip--retired,
+.meta-chip--abandoned,
+.meta-chip--lost,
+.meta-chip--disbanded { background: #fef3c7; color: #92400e; }
+
+.meta-chip--deceased,
+.meta-chip--destroyed,
+.meta-chip--cancelled,
+.meta-chip--defunct   { background: #fee2e2; color: #991b1b; }
+
+.meta-chip--completed,
+.meta-chip--unknown   { background: var(--color-badge-bg); color: var(--color-muted); }
+
+.meta-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.meta-link-list a { font-size: 0.875rem; }
+
+.meta-plain {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
 /* ── Reference panels ───────────────────────────────────────────────────────── */
 .ref-panels {
   display: grid;

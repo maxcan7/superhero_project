@@ -3,6 +3,8 @@
 import re
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Literal
+from typing import TypedDict
 
 from sqlalchemy import or_
 from sqlalchemy import select
@@ -16,6 +18,24 @@ from superhero_project.domain._utils import normalize_str
 
 AliasIndex = dict[str, int]  # normalized text → article_id
 SlugMap = dict[int, str]  # article_id → slug
+
+
+class ResolvedLink(TypedDict):
+    """Infobox link item that resolved to a published article."""
+
+    resolved: Literal[True]
+    slug: str
+    article_type: str
+
+
+class UnresolvedLink(TypedDict):
+    """Infobox link item that did not resolve at save time."""
+
+    resolved: Literal[False]
+    label: str
+
+
+InboxLinkItem = ResolvedLink | UnresolvedLink
 
 _WIKILINK_RE = re.compile(r"\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]")
 
@@ -199,7 +219,7 @@ async def fetch_outgoing_links(
     """Return outgoing edges for an article: resolved wikilinks and metadata edges."""
     rows = await db.execute(
         text(
-            "SELECT a.slug, a.article_type, al.field_name"
+            "SELECT a.slug, a.article_type, al.field_name, al.resolved_via"
             " FROM article_links al JOIN articles a ON a.id = al.target_id"
             " WHERE al.source_id = :id AND a.status = 'published'"
             " ORDER BY al.field_name NULLS FIRST, a.article_type"
@@ -207,9 +227,73 @@ async def fetch_outgoing_links(
         {"id": article_id},
     )
     return [
-        {"slug": r.slug, "article_type": r.article_type, "field_name": r.field_name}
+        {
+            "slug": r.slug,
+            "article_type": r.article_type,
+            "field_name": r.field_name,
+            "resolved_via": r.resolved_via,
+        }
         for r in rows
     ]
+
+
+def _field_edge_map(
+    outgoing: list[dict[str, str | None]],
+) -> dict[str, dict[str, ResolvedLink]]:
+    """Index metadata edges by field_name → resolved_via → ResolvedLink."""
+    result: dict[str, dict[str, ResolvedLink]] = {}
+    for edge in outgoing:
+        fn = edge.get("field_name")
+        rv = edge.get("resolved_via")
+        slug = edge.get("slug")
+        article_type = edge.get("article_type")
+        if fn is None or rv is None or slug is None or article_type is None:
+            continue
+        result.setdefault(fn, {})[rv] = ResolvedLink(
+            resolved=True, slug=slug, article_type=article_type
+        )
+    return result
+
+
+def _resolve_field_values(
+    values: list[str],
+    resolved_map: dict[str, ResolvedLink],
+) -> list[InboxLinkItem]:
+    """Map metadata strings to resolved links or unresolved plain-text fallbacks."""
+    items: list[InboxLinkItem] = []
+    for v in values:
+        normalized = normalize_str(v)
+        if normalized in resolved_map:
+            items.append(resolved_map[normalized])
+        else:
+            items.append(UnresolvedLink(resolved=False, label=v))
+    return items
+
+
+def build_infobox_links(
+    outgoing: list[dict[str, str | None]],
+    article_type: ArticleType,
+    metadata: dict[str, str | list[str] | None],
+) -> dict[str, list[InboxLinkItem]]:
+    """Pre-compute linked-field items for infobox rendering.
+
+    Returns field_name → list of resolved links or unresolved plain-text fallbacks.
+    """
+    handler = _HANDLERS.get(article_type)
+    if handler is None:
+        return {}
+
+    edge_map = _field_edge_map(outgoing)
+    result: dict[str, list[InboxLinkItem]] = {}
+    for edge_field_name, meta_key, _is_list in handler.edge_fields:
+        value = metadata.get(meta_key)
+        if not value:
+            continue
+        values: list[str] = value if isinstance(value, list) else [value]
+        result[edge_field_name] = _resolve_field_values(
+            values, edge_map.get(edge_field_name, {})
+        )
+    return result
 
 
 async def fetch_incoming_links(
