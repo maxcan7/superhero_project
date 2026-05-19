@@ -21,6 +21,7 @@ from superhero_project.db.models import Vote
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
+from superhero_project.domain.links import build_link_maps
 from superhero_project.routers._utils import fetch_article
 from superhero_project.routers.articles import _can_edit
 from superhero_project.routers.articles import _compute_diffs
@@ -115,7 +116,9 @@ async def search_articles(request: Request, db: DB, q: str) -> Response:
         .order_by(func.ts_rank(Article.search_vector, tsquery).desc())
         .options(selectinload(Article.tags))
     )
-    results = [_to_out(a) for a in (await db.execute(stmt)).scalars().all()]
+    index, slug_map = await build_link_maps(db)
+    articles = (await db.execute(stmt)).scalars().all()
+    results = [_to_out(a, index, slug_map) for a in articles]
     user = await get_current_user_opt(request, db)
     return _templates.TemplateResponse(
         request=request,
@@ -129,7 +132,8 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
     """Render an article as an HTML page."""
     user = await get_current_user_opt(request, db)
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
-    article = _to_out(article_db)
+    index, slug_map = await build_link_maps(db)
+    article = _to_out(article_db, index, slug_map)
     vote_upvotes, vote_downvotes, vote_score, user_vote = await _load_vote_context(
         article_db.id, user, db
     )
@@ -155,11 +159,12 @@ async def view_article_history(request: Request, identifier: str, db: DB) -> Res
     """Render the edit history page with unified diffs for each revision."""
     user = await get_current_user_opt(request, db)
     article = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    index, slug_map = await build_link_maps(db)
     return _templates.TemplateResponse(
         request=request,
         name="history.html",
         context={
-            "article": _to_out(article),
+            "article": _to_out(article, index, slug_map),
             "history": _compute_diffs(
                 await _load_history(article, db), article.content
             ),
@@ -175,7 +180,8 @@ async def edit_article_form(request: Request, identifier: str, db: DB) -> Respon
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
     if not _can_edit(user, article_db):
         raise HTTPException(status_code=403, detail="Forbidden")
-    article = _to_out(article_db)
+    index, slug_map = await build_link_maps(db)
+    article = _to_out(article_db, index, slug_map)
     return _templates.TemplateResponse(
         request=request,
         name="editor.html",

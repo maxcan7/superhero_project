@@ -176,6 +176,23 @@ class Comment(Base):
     author: Mapped["User"] = relationship(back_populates="comments")
 
 
+class ArticleLink(Base):
+    """Edge in the article link graph: wikilinks (field_name NULL) and metadata
+    edges."""
+
+    __tablename__ = "article_links"
+
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("articles.id", ondelete="CASCADE"), nullable=False
+    )
+    target_id: Mapped[int] = mapped_column(
+        ForeignKey("articles.id", ondelete="CASCADE"), nullable=False
+    )
+    field_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    resolved_via: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
 class ArticleHistory(Base):
     """Snapshot of an article's metadata and content at the time of an edit."""
 

@@ -91,7 +91,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
   Collision policy: when a moderation approval would cause an alias to be claimed by two different articles, the moderator is prompted to resolve it — either by adding a qualifier to one article's slug/aliases (e.g., "Mercury (villain)" vs "Mercury (hero)"), or by creating a disambiguation page at the shared alias (see Task 6). The alias index only maps unambiguous aliases; a shared alias that has been flagged for disambiguation is excluded from the index and handled separately.
   `superhero_project/domain/links.py`
 
-- [ ] **3.** `feat: add wikilink parser and renderer`
+- [x] **3.** `feat: add wikilink parser and renderer`
   Scans `[[...]]` patterns from article body on save. Supports optional display text: `[[Entity Name|Display Text]]`.
 
   Regex: `r'\[\[([^\]|]+?)(?:\|[^\]]+?)?\]\]'`

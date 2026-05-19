@@ -22,6 +22,7 @@ async def make_article(
     metadata_: dict[str, Any],
     status: ArticleStatus = ArticleStatus.published,
     designation: str | None = None,
+    content: str = "",
 ) -> Article:
     """Persist and return a minimal article for use in tests."""
     a = Article(
@@ -29,7 +30,7 @@ async def make_article(
         article_type=article_type,
         designation=designation,
         metadata_=metadata_,
-        content="",
+        content=content,
         author_id=user.id,
         status=status,
     )

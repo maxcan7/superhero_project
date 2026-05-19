@@ -29,6 +29,11 @@ from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.domain.comic import ComicMetadata
 from superhero_project.domain.event import EventMetadata
+from superhero_project.domain.links import AliasIndex
+from superhero_project.domain.links import SlugMap
+from superhero_project.domain.links import build_link_maps
+from superhero_project.domain.links import render_wikilinks
+from superhero_project.domain.links import sync_wikilink_edges
 from superhero_project.domain.location import LocationMetadata
 from superhero_project.domain.lore import LoreMetadata
 from superhero_project.domain.org import OrgMetadata
@@ -91,9 +96,9 @@ class ArticleOut(BaseModel):
     tags: list[str]
 
 
-def _render(text: str) -> str:
-    """Render a Markdown string to HTML."""
-    return str(_md.render(text))
+def _render(text: str, index: AliasIndex, slug_map: SlugMap) -> str:
+    """Render a Markdown string to HTML, with wikilinks resolved to HTML anchors."""
+    return str(_md.render(render_wikilinks(text, index, slug_map)))
 
 
 def _validate_metadata(
@@ -114,11 +119,8 @@ def _can_edit(user: User, article: Article) -> bool:
     )
 
 
-def _to_out(article: Article) -> ArticleOut:
-    """Map an ORM Article (tags eagerly loaded) to ArticleOut.
-
-    Renders article content from Markdown to HTML.
-    """
+def _to_out(article: Article, index: AliasIndex, slug_map: SlugMap) -> ArticleOut:
+    """Map an ORM Article (tags eagerly loaded) to ArticleOut; renders wikilinks."""
     return ArticleOut(
         id=article.id,
         slug=article.slug,
@@ -127,7 +129,7 @@ def _to_out(article: Article) -> ArticleOut:
         schema_version=article.schema_version,
         metadata=article.metadata_,
         content=article.content,
-        rendered_body=_render(article.content),
+        rendered_body=_render(article.content, index, slug_map),
         author_id=article.author_id,
         status=article.status,
         created_at=article.created_at,
@@ -198,9 +200,10 @@ class RenderRequest(BaseModel):
 
 
 @router.post("/render", response_class=HTMLResponse)
-async def render_markdown(body: RenderRequest) -> Response:
+async def render_markdown(body: RenderRequest, db: DB) -> Response:
     """Render a Markdown string to HTML — used by the live editor preview."""
-    return HTMLResponse(_render(body.content))
+    index, slug_map = await build_link_maps(db)
+    return HTMLResponse(_render(body.content, index, slug_map))
 
 
 async def _create_profile(
@@ -225,12 +228,15 @@ async def _create_profile(
     for tag in body.tags:
         db.add(ArticleTag(article_id=article.id, tag=tag))
     await db.commit()
+    index, slug_map = await build_link_maps(db)
+    await sync_wikilink_edges(article.id, article.content, index, db)
+    await db.commit()
     result = await db.execute(
         select(Article)
         .where(Article.id == article.id)
         .options(selectinload(Article.tags))
     )
-    return _to_out(result.scalar_one())
+    return _to_out(result.scalar_one(), index, slug_map)
 
 
 @router.post("/", status_code=201)
@@ -253,18 +259,23 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     for tag in body.tags:
         db.add(ArticleTag(article_id=article.id, tag=tag))
     await db.commit()
+    index, slug_map = await build_link_maps(db)
+    await sync_wikilink_edges(article.id, article.content, index, db)
+    await db.commit()
     result = await db.execute(
         select(Article)
         .where(Article.id == article.id)
         .options(selectinload(Article.tags))
     )
-    return _to_out(result.scalar_one())
+    return _to_out(result.scalar_one(), index, slug_map)
 
 
 @router.get("/{identifier}")
 async def get_article(identifier: str, db: DB) -> ArticleOut:
     """Fetch a single article by designation or slug."""
-    return _to_out(await fetch_article(identifier, db, [selectinload(Article.tags)]))
+    article = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    index, slug_map = await build_link_maps(db)
+    return _to_out(article, index, slug_map)
 
 
 @router.put("/{identifier}")
@@ -297,13 +308,15 @@ async def update_article(
         db.add_all([ArticleTag(article_id=article.id, tag=tag) for tag in body.tags])
 
     await db.commit()
-
+    index, slug_map = await build_link_maps(db)
+    await sync_wikilink_edges(article.id, article.content, index, db)
+    await db.commit()
     result = await db.execute(
         select(Article)
         .where(Article.id == article.id)
         .options(selectinload(Article.tags))
     )
-    return _to_out(result.scalar_one())
+    return _to_out(result.scalar_one(), index, slug_map)
 
 
 @router.get("/{identifier}/history")
