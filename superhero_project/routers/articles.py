@@ -31,6 +31,7 @@ from superhero_project.domain.comic import ComicMetadata
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.links import AliasIndex
 from superhero_project.domain.links import SlugMap
+from superhero_project.domain.links import backfill_on_alias_change
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import render_wikilinks
 from superhero_project.domain.links import sync_metadata_edges
@@ -194,6 +195,32 @@ def _compute_diffs(
     return result
 
 
+async def _sync_edges(
+    article_id: int,
+    article_type: ArticleType,
+    content: str,
+    metadata: dict[str, Any],
+    db: AsyncSession,
+) -> tuple[AliasIndex, SlugMap]:
+    """Build link maps and sync wikilink + metadata edges for one article."""
+    index, slug_map = await build_link_maps(db)
+    await sync_wikilink_edges(article_id, content, index, db)
+    await sync_metadata_edges(article_id, article_type, metadata, index, db)
+    return index, slug_map
+
+
+async def _build_response(
+    article_id: int, index: AliasIndex, slug_map: SlugMap, db: AsyncSession
+) -> ArticleOut:
+    """Re-fetch an article with tags loaded and render it to ArticleOut."""
+    result = await db.execute(
+        select(Article)
+        .where(Article.id == article_id)
+        .options(selectinload(Article.tags))
+    )
+    return _to_out(result.scalar_one(), index, slug_map)
+
+
 class RenderRequest(BaseModel):
     """Request body for the Markdown render helper."""
 
@@ -229,18 +256,11 @@ async def _create_profile(
     for tag in body.tags:
         db.add(ArticleTag(article_id=article.id, tag=tag))
     await db.commit()
-    index, slug_map = await build_link_maps(db)
-    await sync_wikilink_edges(article.id, article.content, index, db)
-    await sync_metadata_edges(
-        article.id, article.article_type, article.metadata_, index, db
+    index, slug_map = await _sync_edges(
+        article.id, article.article_type, article.content, article.metadata_, db
     )
     await db.commit()
-    result = await db.execute(
-        select(Article)
-        .where(Article.id == article.id)
-        .options(selectinload(Article.tags))
-    )
-    return _to_out(result.scalar_one(), index, slug_map)
+    return await _build_response(article.id, index, slug_map, db)
 
 
 @router.post("/", status_code=201)
@@ -263,18 +283,11 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     for tag in body.tags:
         db.add(ArticleTag(article_id=article.id, tag=tag))
     await db.commit()
-    index, slug_map = await build_link_maps(db)
-    await sync_wikilink_edges(article.id, article.content, index, db)
-    await sync_metadata_edges(
-        article.id, article.article_type, article.metadata_, index, db
+    index, slug_map = await _sync_edges(
+        article.id, article.article_type, article.content, article.metadata_, db
     )
     await db.commit()
-    result = await db.execute(
-        select(Article)
-        .where(Article.id == article.id)
-        .options(selectinload(Article.tags))
-    )
-    return _to_out(result.scalar_one(), index, slug_map)
+    return await _build_response(article.id, index, slug_map, db)
 
 
 @router.get("/{identifier}")
@@ -305,6 +318,8 @@ async def update_article(
         )
     )
 
+    old_metadata = article.metadata_
+
     if body.metadata is not None:
         article.metadata_ = _validate_metadata(article.article_type, body.metadata)
     if body.content is not None:
@@ -315,18 +330,15 @@ async def update_article(
         db.add_all([ArticleTag(article_id=article.id, tag=tag) for tag in body.tags])
 
     await db.commit()
-    index, slug_map = await build_link_maps(db)
-    await sync_wikilink_edges(article.id, article.content, index, db)
-    await sync_metadata_edges(
-        article.id, article.article_type, article.metadata_, index, db
+    index, slug_map = await _sync_edges(
+        article.id, article.article_type, article.content, article.metadata_, db
     )
+    if body.metadata is not None and article.status == ArticleStatus.published:
+        await backfill_on_alias_change(
+            article.id, old_metadata, article.metadata_, article.article_type, db
+        )
     await db.commit()
-    result = await db.execute(
-        select(Article)
-        .where(Article.id == article.id)
-        .options(selectinload(Article.tags))
-    )
-    return _to_out(result.scalar_one(), index, slug_map)
+    return await _build_response(article.id, index, slug_map, db)
 
 
 @router.get("/{identifier}/history")

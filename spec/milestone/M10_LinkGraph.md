@@ -165,7 +165,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
   Panel display: wikilink edges (field_name NULL) grouped under "Mentioned in body"; metadata edges grouped by field_name (e.g., "Via: affiliation", "Via: participants"). Each entry is a linked article chip showing type badge + slug.
   `superhero_project/templates/article.html superhero_project/static/css/`
 
-- [ ] **6.** `feat: backfill edges on publish and alias change`
+- [x] **6.** `feat: backfill edges on publish and alias change`
   Two triggers both require re-parsing wikilinks in other articles: publishing a new article (previously-unresolved `[[Entity Name]]` edges can now resolve) and editing an article's aliases (added aliases open new resolutions; removed aliases may invalidate existing edges).
 
   On publish:

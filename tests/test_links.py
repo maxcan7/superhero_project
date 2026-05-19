@@ -10,6 +10,9 @@ from superhero_project.db.models import User
 from superhero_project.domain.links import AliasIndex
 from superhero_project.domain.links import SlugMap
 from superhero_project.domain.links import _extract_metadata_edges
+from superhero_project.domain.links import _find_articles_referencing
+from superhero_project.domain.links import backfill_on_alias_change
+from superhero_project.domain.links import backfill_on_publish
 from superhero_project.domain.links import build_alias_index
 from superhero_project.domain.links import fetch_incoming_links
 from superhero_project.domain.links import fetch_outgoing_links
@@ -557,3 +560,129 @@ async def test_fetch_links_excludes_unpublished(
     await db.commit()
     article_id = source.id if article_role == "source" else target.id
     assert await fetch_fn(article_id, db) == []
+
+
+# --- backfill_on_publish ---
+
+
+@pytest.mark.parametrize(
+    ("source_content", "target_content", "expect_resolve"),
+    [
+        pytest.param("[[Avengers]]", "", True, id="resolves-wikilinks"),
+        pytest.param("", "[[Avengers]]", False, id="ignores-self"),
+    ],
+)
+async def test_backfill_on_publish(
+    db: AsyncSession,
+    user: User,
+    source_content: str,
+    target_content: str,
+    expect_resolve: bool,
+) -> None:
+    """Publish backfill resolves wikilinks in other articles; does not self-link."""
+    target = await make_article(
+        db,
+        user,
+        slug="avengers",
+        article_type=ArticleType.org,
+        metadata_=ORG_META,
+        content=target_content,
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="iron-man",
+        article_type=ArticleType.profile,
+        metadata_=PROFILE_META,
+        content=source_content,
+    )
+    await backfill_on_publish(target.id, db)
+    await db.commit()
+    checked_id = source.id if expect_resolve else target.id
+    assert len(await _get_wikilink_edges(db, checked_id)) == int(expect_resolve)
+
+
+# --- backfill_on_alias_change ---
+
+
+@pytest.mark.parametrize(
+    ("old_aliases", "new_aliases", "pre_populate", "expect_edge"),
+    [
+        pytest.param([], ["iron man"], False, True, id="added-resolves"),
+        pytest.param(["iron man"], [], True, False, id="removed-deletes"),
+    ],
+)
+async def test_backfill_on_alias_change(
+    db: AsyncSession,
+    user: User,
+    old_aliases: list[str],
+    new_aliases: list[str],
+    pre_populate: bool,
+    expect_edge: bool,
+) -> None:
+    """Alias additions resolve wikilink edges; alias removals delete them."""
+    old_meta = {**PROFILE_META, "aliases": old_aliases}
+    new_meta = {**PROFILE_META, "aliases": new_aliases}
+    target = await make_article(
+        db,
+        user,
+        slug="tony-stark",
+        article_type=ArticleType.profile,
+        metadata_=new_meta,
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="source",
+        article_type=ArticleType.org,
+        metadata_=ORG_META,
+        content="[[Iron Man]]",
+    )
+    if pre_populate:
+        await sync_wikilink_edges(
+            source.id, source.content, {"iron man": target.id}, db
+        )
+        await db.commit()
+    await backfill_on_alias_change(
+        target.id, old_meta, new_meta, ArticleType.profile, db
+    )
+    await db.commit()
+    assert (len(await _get_wikilink_edges(db, source.id)) > 0) == expect_edge
+
+
+async def test_backfill_on_publish_via_alias(db: AsyncSession, user: User) -> None:
+    """Publish backfill resolves wikilinks that reference the article by an alias."""
+    target = await make_article(
+        db,
+        user,
+        slug="tony-stark",
+        article_type=ArticleType.profile,
+        metadata_={**PROFILE_META, "aliases": ["iron man"]},
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="source",
+        article_type=ArticleType.org,
+        metadata_=ORG_META,
+        content="[[Iron Man]]",
+    )
+    await backfill_on_publish(target.id, db)
+    await db.commit()
+    assert await _get_wikilink_edges(db, source.id) == [
+        {"target_id": target.id, "field_name": None, "resolved_via": "iron man"}
+    ]
+
+
+async def test_find_articles_referencing_empty_set(
+    db: AsyncSession, user: User
+) -> None:
+    """Empty alias set returns immediately without querying."""
+    assert await _find_articles_referencing(set(), 0, db) == []
+
+
+async def test_backfill_on_alias_change_noop_for_type_without_aliases(
+    db: AsyncSession, user: User
+) -> None:
+    """backfill_on_alias_change is a no-op for article types with no alias fields."""
+    await backfill_on_alias_change(999, {}, {}, ArticleType.event, db)

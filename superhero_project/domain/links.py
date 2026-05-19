@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from dataclasses import field
 
+from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -229,6 +230,94 @@ async def fetch_incoming_links(
         {"slug": r.slug, "article_type": r.article_type, "field_name": r.field_name}
         for r in rows
     ]
+
+
+def _article_aliases(
+    article_type: ArticleType,
+    slug: str,
+    designation: str | None,
+    metadata: dict[str, str | list[str] | None],
+) -> set[str]:
+    """Return all normalized alias strings for an article."""
+    aliases = {normalize_str(slug)}
+    handler = _HANDLERS.get(article_type)
+    if handler:
+        if handler.index_designation and designation:
+            aliases.add(normalize_str(designation))
+        for alias_field in handler.alias_fields:
+            value = metadata.get(alias_field)
+            if isinstance(value, list):
+                for alias in value:
+                    aliases.add(normalize_str(alias))
+    return aliases
+
+
+async def _find_articles_referencing(
+    aliases: set[str], exclude_id: int, db: AsyncSession
+) -> list[Article]:
+    """Find published articles whose content contains any of the given alias strings."""
+    if not aliases:
+        return []
+    result = await db.execute(
+        select(Article)
+        .where(Article.status == ArticleStatus.published)
+        .where(Article.id != exclude_id)
+        .where(or_(*(Article.content.ilike(f"%{alias}%") for alias in aliases)))
+    )
+    return list(result.scalars().all())
+
+
+async def backfill_on_publish(article_id: int, db: AsyncSession) -> None:
+    """Re-resolve wikilink edges in other articles that can now resolve to this one."""
+    article = (
+        await db.execute(select(Article).where(Article.id == article_id))
+    ).scalar_one()
+    aliases = _article_aliases(
+        article.article_type, article.slug, article.designation, article.metadata_
+    )
+    index, _ = await build_link_maps(db)
+    for candidate in await _find_articles_referencing(aliases, article_id, db):
+        await sync_wikilink_edges(candidate.id, candidate.content, index, db)
+
+
+async def backfill_on_alias_change(
+    article_id: int,
+    old_metadata: dict[str, str | list[str] | None],
+    new_metadata: dict[str, str | list[str] | None],
+    article_type: ArticleType,
+    db: AsyncSession,
+) -> None:
+    """Handle wikilink edge changes caused by alias additions or removals."""
+    handler = _HANDLERS.get(article_type)
+    if handler is None or not handler.alias_fields:
+        return
+
+    old_aliases: set[str] = set()
+    new_aliases: set[str] = set()
+    for alias_field in handler.alias_fields:
+        old_val = old_metadata.get(alias_field)
+        new_val = new_metadata.get(alias_field)
+        if isinstance(old_val, list):
+            old_aliases.update(normalize_str(a) for a in old_val)
+        if isinstance(new_val, list):
+            new_aliases.update(normalize_str(a) for a in new_val)
+
+    added = new_aliases - old_aliases
+    removed = old_aliases - new_aliases
+
+    if added:
+        index, _ = await build_link_maps(db)
+        for candidate in await _find_articles_referencing(added, article_id, db):
+            await sync_wikilink_edges(candidate.id, candidate.content, index, db)
+
+    for alias in removed:
+        await db.execute(
+            text(
+                "DELETE FROM article_links"
+                " WHERE target_id = :article_id AND resolved_via = :alias"
+            ),
+            {"article_id": article_id, "alias": alias},
+        )
 
 
 async def sync_metadata_edges(

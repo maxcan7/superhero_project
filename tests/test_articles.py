@@ -2,8 +2,15 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import Article
+from superhero_project.db.models import ArticleType
+from superhero_project.db.models import User
+from superhero_project.domain.links import sync_wikilink_edges
+from tests.utils import ORG_META
+from tests.utils import make_article
 
 pytestmark = pytest.mark.anyio
 
@@ -268,3 +275,50 @@ async def test_history_diff_shows_change(
     """The content diff contains the text introduced by the edit."""
     history = (await auth_client.get(f"/articles/{edited_article.slug}/history")).json()
     assert "v2" in history[0]["content_diff"]
+
+
+# ── Backfill on alias change ───────────────────────────────────────────────────
+
+
+async def test_update_removed_alias_deletes_edges(
+    auth_client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+    published_article: Article,
+) -> None:
+    """Removing an alias via PUT deletes wikilink edges resolved via that alias."""
+    source = await make_article(
+        db,
+        user,
+        slug="source-org",
+        article_type=ArticleType.org,
+        metadata_=ORG_META,
+        content="[[The Guardian]]",
+    )
+    await sync_wikilink_edges(
+        source.id, source.content, {"the guardian": published_article.id}, db
+    )
+    await db.commit()
+    new_meta = {
+        "aliases": [],
+        "affiliation": [],
+        "powers": ["flight", "strength"],
+        "status": "active",
+        "base_of_operations": None,
+        "first_appearance": None,
+    }
+    await auth_client.put(
+        f"/articles/{published_article.slug}", json={"metadata": new_meta}
+    )
+    rows = list(
+        (
+            await db.execute(
+                text(
+                    "SELECT target_id FROM article_links"
+                    " WHERE source_id = :sid AND field_name IS NULL"
+                ),
+                {"sid": source.id},
+            )
+        ).fetchall()
+    )
+    assert rows == []

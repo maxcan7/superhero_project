@@ -23,6 +23,7 @@ from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
+from superhero_project.domain.links import backfill_on_publish
 from superhero_project.routers._utils import fetch_article
 
 _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
@@ -94,18 +95,14 @@ async def _transition(
     identifier: str,
     new_status: ArticleStatus,
     db: AsyncSession,
-    *,
-    set_published_at: bool = False,
 ) -> QueueItemOut:
-    """Transition a pending article to new_status, optionally stamping published_at."""
+    """Transition a pending article to new_status."""
     article = await fetch_article(
         identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
     )
     if article.status != ArticleStatus.pending:
         raise HTTPException(status_code=409, detail="Article is not pending")
     article.status = new_status
-    if set_published_at:
-        article.published_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
     return _to_out(await _fetch_by_id(article.id, db))
 
@@ -170,9 +167,16 @@ async def approve_article(request: Request, identifier: str, db: DB) -> QueueIte
     """Approve a pending article (pending → published, moderator/admin only)."""
     user = await get_current_user(request, db)
     _require_moderator(user)
-    return await _transition(
-        identifier, ArticleStatus.published, db, set_published_at=True
+    article = await fetch_article(
+        identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
     )
+    if article.status != ArticleStatus.pending:
+        raise HTTPException(status_code=409, detail="Article is not pending")
+    article.status = ArticleStatus.published
+    article.published_at = datetime.now(UTC).replace(tzinfo=None)
+    await backfill_on_publish(article.id, db)
+    await db.commit()
+    return _to_out(await _fetch_by_id(article.id, db))
 
 
 @router.post("/{identifier}/reject")

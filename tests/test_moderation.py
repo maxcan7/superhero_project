@@ -2,8 +2,14 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import Article
+from superhero_project.db.models import ArticleType
+from superhero_project.db.models import User
+from tests.utils import ORG_META
+from tests.utils import make_article
 
 pytestmark = pytest.mark.anyio
 
@@ -203,3 +209,32 @@ async def test_moderation_action_not_found(
     assert (
         await mod_auth_client.post(f"/moderation/nonexistent/{action}")
     ).status_code == 404
+
+
+# ── Backfill on approve ────────────────────────────────────────────────────────
+
+
+async def test_approve_backfills_wikilink_edges(
+    mod_auth_client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+    pending_article: Article,
+) -> None:
+    """Approving an article backfills wikilink edges in articles that reference it."""
+    source = await make_article(
+        db,
+        user,
+        slug="source-org",
+        article_type=ArticleType.org,
+        metadata_=ORG_META,
+        content=f"[[{pending_article.slug}]]",
+    )
+    await mod_auth_client.post(f"/moderation/{pending_article.slug}/approve")
+    rows = await db.execute(
+        text(
+            "SELECT target_id FROM article_links"
+            " WHERE source_id = :sid AND field_name IS NULL"
+        ),
+        {"sid": source.id},
+    )
+    assert any(r.target_id == pending_article.id for r in rows)
