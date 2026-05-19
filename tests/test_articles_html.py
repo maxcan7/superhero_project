@@ -12,6 +12,7 @@ from superhero_project.db.models import User
 from superhero_project.db.models import Vote
 from superhero_project.domain.links import sync_metadata_edges
 from superhero_project.domain.links import sync_wikilink_edges
+from tests.utils import EVENT_META
 from tests.utils import LOCATION_META
 from tests.utils import ORG_META
 from tests.utils import PROFILE_META
@@ -305,3 +306,78 @@ async def test_members_page(
 async def test_members_page_404(client: AsyncClient) -> None:
     """Members page returns 404 for a nonexistent article."""
     assert (await client.get("/articles/nonexistent/members")).status_code == 404
+
+
+# ── Location activity view ─────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("has_event", "has_resident", "expected_texts"),
+    [
+        pytest.param(
+            True,
+            True,
+            ["battle-of-gotham", "bruce-wayne"],
+            id="with-event-and-resident",
+        ),
+        pytest.param(
+            False, False, ["No events recorded here", "No residents"], id="empty"
+        ),
+    ],
+)
+async def test_activity_page(
+    client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+    has_event: bool,
+    has_resident: bool,
+    expected_texts: list[str],
+) -> None:
+    """Activity page renders linked events and residents or the empty state."""
+    location = await make_article(
+        db,
+        user,
+        slug="gotham",
+        article_type=ArticleType.location,
+        metadata_=LOCATION_META,
+    )
+    if has_event:
+        event = await make_article(
+            db,
+            user,
+            slug="battle-of-gotham",
+            article_type=ArticleType.event,
+            metadata_=EVENT_META,
+        )
+        await sync_metadata_edges(
+            event.id,
+            ArticleType.event,
+            {**EVENT_META, "location": "gotham"},
+            {"gotham": location.id},
+            db,
+        )
+    if has_resident:
+        profile = await make_article(
+            db,
+            user,
+            slug="bruce-wayne",
+            article_type=ArticleType.profile,
+            metadata_=PROFILE_META,
+        )
+        await sync_metadata_edges(
+            profile.id,
+            ArticleType.profile,
+            {**PROFILE_META, "base_of_operations": "gotham"},
+            {"gotham": location.id},
+            db,
+        )
+    await db.commit()
+    resp = await client.get(f"/articles/{location.slug}/activity")
+    assert resp.status_code == 200
+    for text in expected_texts:
+        assert text in resp.text
+
+
+async def test_activity_page_404(client: AsyncClient) -> None:
+    """Activity page returns 404 for a nonexistent article."""
+    assert (await client.get("/articles/nonexistent/activity")).status_code == 404

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% set identifier = article.designation or article.slug %}
+
+{% block title %}Activity at {{ identifier }} — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="activity-page">
+  <h1>Activity at <a href="/articles/{{ article.slug }}">{{ identifier }}</a></h1>
+
+  <section class="activity-section">
+    <h2>Events Here</h2>
+    {% if not events %}
+    <p class="empty-state">No events recorded here.</p>
+    {% else %}
+    <ul class="activity-list">
+      {% for event in events %}
+      <li class="activity-entry">
+        <a href="/articles/{{ event.slug }}" class="activity-name">{{ event.slug }}</a>
+        {% if event.event_date %}<span class="activity-date">{{ event.event_date }}</span>{% endif %}
+        {% if event.outcome %}<span class="activity-outcome">{{ event.outcome }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="activity-section">
+    <h2>Residents &amp; Operatives</h2>
+    {% if not residents %}
+    <p class="empty-state">No residents or operatives found.</p>
+    {% else %}
+    <ul class="activity-list">
+      {% for resident in residents %}
+      <li class="activity-entry">
+        <a href="/articles/{{ resident.slug }}" class="activity-name">{{ resident.designation or resident.slug }}</a>
+        <span class="meta-chip meta-chip--{{ resident.status }}">{{ resident.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

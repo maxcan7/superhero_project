@@ -25,6 +25,7 @@ from superhero_project.dependencies import get_current_user_opt
 from superhero_project.domain.infobox import build_infobox_links
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import fetch_incoming_links
+from superhero_project.domain.links import fetch_location_activity
 from superhero_project.domain.links import fetch_org_members
 from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.routers._utils import fetch_article
@@ -196,6 +197,26 @@ async def view_org_members(request: Request, identifier: str, db: DB) -> Respons
         request=request,
         name="members.html",
         context={"article": article, "user": user, "grouped_members": grouped},
+    )
+
+
+@router.get("/{identifier}/activity", response_class=HTMLResponse)
+async def view_location_activity(request: Request, identifier: str, db: DB) -> Response:
+    """Render the location activity derived view."""
+    user = await get_current_user_opt(request, db)
+    article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    events, residents = await fetch_location_activity(article_db.id, db)
+    index, slug_map = await build_link_maps(db)
+    article = _to_out(article_db, index, slug_map)
+    return _templates.TemplateResponse(
+        request=request,
+        name="activity.html",
+        context={
+            "article": article,
+            "user": user,
+            "events": events,
+            "residents": residents,
+        },
     )
 
 

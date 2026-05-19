@@ -112,7 +112,7 @@ M10 established the edge table. M11 is the surface area that makes it visible an
   Display: grouped by profile status (active first), each entry showing designation + aliases chip row. Standalone page allows pagination if the roster grows.
   `superhero_project/routers/articles_html.py superhero_project/templates/`
 
-- [ ] **3.** `feat: add location activity derived view`
+- [x] **3.** `feat: add location activity derived view`
   Standalone route at `/articles/{slug}/activity` with two sub-lists derived from `article_links`. Linked from the location article page.
 
   Events here (field_name='location', source is an event):

@@ -244,6 +244,47 @@ async def fetch_org_members(org_id: int, db: AsyncSession) -> list[dict[str, obj
     ]
 
 
+async def fetch_location_activity(
+    location_id: int, db: AsyncSession
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Return (events, residents) for a location derived from article_links."""
+    event_rows = await db.execute(
+        text(
+            "SELECT a.slug, a.metadata->>'event_date' AS event_date,"
+            " a.metadata->>'outcome' AS outcome"
+            " FROM article_links al JOIN articles a ON a.id = al.source_id"
+            " WHERE al.target_id = :location_id"
+            " AND al.field_name = 'location'"
+            " AND a.article_type = 'event'"
+            " AND a.status = 'published'"
+            " ORDER BY a.metadata->>'event_date'"
+        ),
+        {"location_id": location_id},
+    )
+    events = [
+        {"slug": r.slug, "event_date": r.event_date, "outcome": r.outcome}
+        for r in event_rows
+    ]
+
+    resident_rows = await db.execute(
+        text(
+            "SELECT a.slug, a.designation, a.metadata->>'status' AS status"
+            " FROM article_links al JOIN articles a ON a.id = al.source_id"
+            " WHERE al.target_id = :location_id"
+            " AND al.field_name = 'base_of_operations'"
+            " AND a.article_type = 'profile'"
+            " AND a.status = 'published'"
+        ),
+        {"location_id": location_id},
+    )
+    residents = [
+        {"slug": r.slug, "designation": r.designation, "status": r.status or "unknown"}
+        for r in resident_rows
+    ]
+
+    return events, residents
+
+
 async def fetch_incoming_links(
     article_id: int, db: AsyncSession
 ) -> list[dict[str, str | None]]:
