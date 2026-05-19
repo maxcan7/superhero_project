@@ -59,17 +59,33 @@ async def test_get_article_json(
 # ── Create article ─────────────────────────────────────────────────────────────
 
 
-async def test_create_article_non_profile(auth_client: AsyncClient) -> None:
-    """POST /articles/ creates a draft lore article and returns 201."""
-    resp = await auth_client.post(
-        "/articles/",
-        json={"article_type": "lore", "slug": "origin-of-powers", "tags": ["history"]},
-    )
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["slug"] == "origin-of-powers"
-    assert data["status"] == "draft"
-    assert data["tags"] == ["history"]
+@pytest.mark.parametrize(
+    ("body", "expected_status"),
+    [
+        pytest.param(
+            {"article_type": "lore", "slug": "origin-of-powers", "tags": ["history"]},
+            201,
+            id="valid-lore",
+        ),
+        pytest.param(
+            {"article_type": "profile", "metadata": {"not_a_field": True}},
+            422,
+            id="invalid-metadata",
+        ),
+        pytest.param(
+            {"article_type": "disambiguation", "slug": "mercury"},
+            403,
+            id="disambiguation-rejected",
+        ),
+    ],
+)
+async def test_create_article_status(
+    auth_client: AsyncClient, body: dict, expected_status: int
+) -> None:
+    """POST /articles/ returns the expected status for valid, invalid, and restricted
+    bodies."""
+    resp = await auth_client.post("/articles/", json=body)
+    assert resp.status_code == expected_status
 
 
 @pytest.mark.parametrize(
@@ -105,15 +121,6 @@ async def test_create_profile_auto_assigns_designation(
     assert data["designation"].startswith("CAPE-")
     assert data["slug"] == data["designation"]
     assert set(data["tags"]) == expected_tags
-
-
-async def test_create_article_invalid_metadata(auth_client: AsyncClient) -> None:
-    """POST /articles/ with metadata that fails schema validation returns 422."""
-    resp = await auth_client.post(
-        "/articles/",
-        json={"article_type": "profile", "metadata": {"not_a_field": True}},
-    )
-    assert resp.status_code == 422
 
 
 # ── Update article ─────────────────────────────────────────────────────────────

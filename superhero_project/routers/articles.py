@@ -28,6 +28,7 @@ from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.domain.comic import ComicMetadata
+from superhero_project.domain.disambiguation import DisambiguationMetadata
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.links import AliasIndex
 from superhero_project.domain.links import SlugMap
@@ -55,6 +56,7 @@ _METADATA_SCHEMAS: dict[ArticleType, type[BaseModel]] = {
     ArticleType.tech: TechMetadata,
     ArticleType.lore: LoreMetadata,
     ArticleType.comic: ComicMetadata,
+    ArticleType.disambiguation: DisambiguationMetadata,
 }
 
 
@@ -267,6 +269,13 @@ async def _create_profile(
 async def create_article(request: Request, body: ArticleCreate, db: DB) -> ArticleOut:
     """Create a new article as a draft."""
     user = await get_current_user(request, db)
+    if body.article_type == ArticleType.disambiguation:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Use POST /moderation/disambiguation to create disambiguation articles"
+            ),
+        )
     if body.article_type == ArticleType.profile:
         return await _create_profile(body, user, db)
     validated_meta = _validate_metadata(body.article_type, body.metadata)

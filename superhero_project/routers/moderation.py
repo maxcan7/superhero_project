@@ -24,6 +24,8 @@ from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.domain.links import backfill_on_publish
+from superhero_project.domain.links import build_link_maps
+from superhero_project.domain.links import sync_wikilink_edges
 from superhero_project.routers._utils import fetch_article
 
 _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
@@ -194,3 +196,39 @@ async def request_changes(request: Request, identifier: str, db: DB) -> QueueIte
     user = await get_current_user(request, db)
     _require_moderator(user)
     return await _transition(identifier, ArticleStatus.draft, db)
+
+
+class DisambiguationCreate(BaseModel):
+    """Request body for creating a disambiguation article."""
+
+    slug: str
+    content: str = ""
+
+
+@router.post("/disambiguation", status_code=201)
+async def create_disambiguation_article(
+    request: Request, body: DisambiguationCreate, db: DB
+) -> QueueItemOut:
+    """Create and immediately publish a disambiguation article (moderator/admin only).
+
+    Disambiguation articles bypass the normal draft → pending → published flow.
+    """
+    user = await get_current_user(request, db)
+    _require_moderator(user)
+    article = Article(
+        slug=body.slug,
+        article_type=ArticleType.disambiguation,
+        metadata_={},
+        content=body.content,
+        author_id=user.id,
+        status=ArticleStatus.published,
+        published_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+    db.add(article)
+    await db.flush()
+    await db.commit()
+    index, _ = await build_link_maps(db)
+    await sync_wikilink_edges(article.id, article.content, index, db)
+    await backfill_on_publish(article.id, db)
+    await db.commit()
+    return _to_out(await _fetch_by_id(article.id, db))

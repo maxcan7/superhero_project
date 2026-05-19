@@ -1,5 +1,5 @@
 # M10: Link Graph
-Status: in-progress
+Status: complete
 
 Entity relationship graph: wikilinks in article bodies, typed edges from domain metadata fields, and reference panels showing connections between articles.
 
@@ -182,7 +182,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
   Both run synchronously within the same transaction. At this scale a background task queue is not warranted.
   `superhero_project/routers/moderation.py superhero_project/routers/articles.py superhero_project/domain/links.py`
 
-- [ ] **7.** `feat: add disambiguation pages`
+- [x] **7.** `feat: add disambiguation pages`
   A new article type — `disambiguation` — that acts as a named list of articles sharing the same alias. When `[[Mercury]]` is ambiguous, it resolves to the disambiguation page rather than failing silently or picking arbitrarily.
 
   Authoring model (Wikipedia convention):

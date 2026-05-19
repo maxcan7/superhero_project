@@ -12,6 +12,7 @@ from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.domain.comic import ComicMetadata
+from superhero_project.domain.disambiguation import DisambiguationMetadata
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.location import LocationMetadata
 from superhero_project.domain.lore import LoreMetadata
@@ -19,6 +20,7 @@ from superhero_project.domain.org import OrgMetadata
 from superhero_project.domain.profile import ProfileMetadata
 from superhero_project.domain.tech import TechMetadata
 
+DISAMBIG_META: dict = DisambiguationMetadata().model_dump()
 ORG_META: dict = OrgMetadata().model_dump()
 PROFILE_META: dict = ProfileMetadata().model_dump()
 EVENT_META: dict = EventMetadata().model_dump()

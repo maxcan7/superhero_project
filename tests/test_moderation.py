@@ -238,3 +238,74 @@ async def test_approve_backfills_wikilink_edges(
         {"sid": source.id},
     )
     assert any(r.target_id == pending_article.id for r in rows)
+
+
+# ── Disambiguation creation ────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("client_name", "expected"),
+    [
+        pytest.param("client", 401, id="unauthenticated"),
+        pytest.param("auth_client", 403, id="contributor"),
+        pytest.param("mod_auth_client", 201, id="moderator"),
+    ],
+)
+async def test_create_disambiguation_access(
+    client: AsyncClient,
+    auth_client: AsyncClient,
+    mod_auth_client: AsyncClient,
+    client_name: str,
+    expected: int,
+) -> None:
+    """Disambiguation creation requires moderator role."""
+    clients = {
+        "client": client,
+        "auth_client": auth_client,
+        "mod_auth_client": mod_auth_client,
+    }
+    ac = clients[client_name]
+    resp = await ac.post("/moderation/disambiguation", json={"slug": "mercury"})
+    assert resp.status_code == expected
+
+
+async def test_create_disambiguation_publishes_immediately(
+    mod_auth_client: AsyncClient,
+) -> None:
+    """Disambiguation articles are created as published, bypassing the queue."""
+    resp = await mod_auth_client.post(
+        "/moderation/disambiguation", json={"slug": "mercury", "content": ""}
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["status"] == "published"
+    assert data["article_type"] == "disambiguation"
+    assert data["slug"] == "mercury"
+
+
+async def test_create_disambiguation_backfills_wikilinks(
+    mod_auth_client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+) -> None:
+    """Creating a disambiguation article backfills wikilinks in referencing articles."""
+    source = await make_article(
+        db,
+        user,
+        slug="iron-man",
+        article_type=ArticleType.org,
+        metadata_=ORG_META,
+        content="[[mercury]]",
+    )
+    resp = await mod_auth_client.post(
+        "/moderation/disambiguation", json={"slug": "mercury", "content": ""}
+    )
+    disambig_id = resp.json()["id"]
+    rows = await db.execute(
+        text(
+            "SELECT target_id FROM article_links"
+            " WHERE source_id = :sid AND field_name IS NULL"
+        ),
+        {"sid": source.id},
+    )
+    assert any(r.target_id == disambig_id for r in rows)

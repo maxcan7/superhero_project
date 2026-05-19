@@ -15,6 +15,7 @@ from starlette.responses import Response
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleTag
+from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
@@ -64,6 +65,7 @@ async def tag_detail(request: Request, tag: str, db: DB) -> Response:
                 select(Article)
                 .join(ArticleTag, Article.id == ArticleTag.article_id)
                 .where(ArticleTag.tag == tag, Article.status == ArticleStatus.published)
+                .where(Article.article_type != ArticleType.disambiguation)
                 .options(selectinload(Article.tags))
                 .order_by(Article.updated_at.desc())
             )
@@ -102,6 +104,7 @@ async def contributor_profile(request: Request, username: str, db: DB) -> Respon
                     Article.author_id == profile_user.id,
                     Article.status == ArticleStatus.published,
                 )
+                .where(Article.article_type != ArticleType.disambiguation)
                 .options(selectinload(Article.tags))
                 .order_by(Article.updated_at.desc())
             )

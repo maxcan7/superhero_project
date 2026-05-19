@@ -94,12 +94,12 @@ async def test_unpublished_excluded(
     assert "secret" not in await build_alias_index(db)
 
 
-async def test_disambiguation_slug_excluded(db: AsyncSession, user: User) -> None:
-    """Disambiguation slugs are not indexed as direct resolutions."""
-    await make_article(
+async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> None:
+    """Disambiguation slugs are indexed and resolve to the disambiguation article."""
+    a = await make_article(
         db, user, slug="mercury", article_type=ArticleType.disambiguation, metadata_={}
     )
-    assert "mercury" not in await build_alias_index(db)
+    assert await build_alias_index(db) == {"mercury": a.id}
 
 
 # --- render_wikilinks (pure unit tests, no DB) ---
@@ -137,6 +137,13 @@ async def test_disambiguation_slug_excluded(db: AsyncSession, user: User) -> Non
             '<a href="/articles/avengers">Avengers</a>'
             ' and <a href="/articles/new?slug=ghost" class="red-link">Ghost</a>.',
             id="mixed-resolved-and-unresolved",
+        ),
+        pytest.param(
+            "[[Mercury]]",
+            {"mercury": 5},
+            {5: "mercury"},
+            '<a href="/articles/mercury">Mercury</a>',
+            id="disambiguation-page-link",
         ),
     ],
 )

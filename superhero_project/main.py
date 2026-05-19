@@ -17,6 +17,7 @@ from starlette.responses import Response
 from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
+from superhero_project.db.models import ArticleType
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.dependencies import get_db
 from superhero_project.routers import articles
@@ -37,6 +38,7 @@ async def _recent_articles(db: AsyncSession) -> list[ArticleListItem]:
     result = await db.execute(
         select(Article)
         .where(Article.status == ArticleStatus.published)
+        .where(Article.article_type != ArticleType.disambiguation)
         .options(selectinload(Article.tags))
         .order_by(Article.updated_at.desc())
         .limit(20)

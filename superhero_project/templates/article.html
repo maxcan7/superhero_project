@@ -57,6 +57,11 @@
   </aside>
 
   <div class="article-column">
+    {% if article.article_type == 'disambiguation' %}
+    <div class="disambig-notice">
+      This is a disambiguation page — a navigational aid listing articles that share the same title.
+    </div>
+    {% endif %}
     <article class="article-body">
       {{ article.rendered_body | safe }}
     </article>

@@ -90,8 +90,7 @@ async def build_link_maps(db: AsyncSession) -> tuple[AliasIndex, SlugMap]:
     for article in articles:
         slug_map[article.id] = article.slug
 
-        if article.article_type != ArticleType.disambiguation:
-            index[normalize_str(article.slug)] = article.id
+        index[normalize_str(article.slug)] = article.id
 
         handler = _HANDLERS.get(article.article_type)
         if handler is None:
