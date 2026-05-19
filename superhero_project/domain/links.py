@@ -217,6 +217,33 @@ async def fetch_outgoing_links(
     ]
 
 
+async def fetch_org_members(org_id: int, db: AsyncSession) -> list[dict[str, object]]:
+    """Return published profiles whose affiliation edge points to this org."""
+    rows = await db.execute(
+        text(
+            "SELECT a.slug, a.designation,"
+            " a.metadata->>'status' AS status,"
+            " a.metadata->'aliases' AS aliases"
+            " FROM article_links al JOIN articles a ON a.id = al.source_id"
+            " WHERE al.target_id = :org_id"
+            " AND al.field_name = 'affiliation'"
+            " AND a.article_type = 'profile'"
+            " AND a.status = 'published'"
+            " ORDER BY a.metadata->>'status', a.slug"
+        ),
+        {"org_id": org_id},
+    )
+    return [
+        {
+            "slug": r.slug,
+            "designation": r.designation,
+            "status": r.status or "unknown",
+            "aliases": r.aliases or [],
+        }
+        for r in rows
+    ]
+
+
 async def fetch_incoming_links(
     article_id: int, db: AsyncSession
 ) -> list[dict[str, str | None]]:

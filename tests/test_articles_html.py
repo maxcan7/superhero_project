@@ -13,6 +13,7 @@ from superhero_project.db.models import Vote
 from superhero_project.domain.links import sync_metadata_edges
 from superhero_project.domain.links import sync_wikilink_edges
 from tests.utils import LOCATION_META
+from tests.utils import ORG_META
 from tests.utils import PROFILE_META
 from tests.utils import make_article
 
@@ -257,3 +258,50 @@ async def test_edit_article_form_renders(
         assert resp.status_code == 200
         assert 'data-mode="edit"' in resp.text
         assert "Protector of the city" in resp.text
+
+
+# ── Org member roster ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("has_member", "expected_text"),
+    [
+        pytest.param(True, "captain-america", id="with-member"),
+        pytest.param(False, "No members found", id="empty"),
+    ],
+)
+async def test_members_page(
+    client: AsyncClient,
+    db: AsyncSession,
+    user: User,
+    has_member: bool,
+    expected_text: str,
+) -> None:
+    """Members page renders affiliated profiles or the empty state."""
+    org = await make_article(
+        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+    )
+    if has_member:
+        profile = await make_article(
+            db,
+            user,
+            slug="captain-america",
+            article_type=ArticleType.profile,
+            metadata_=PROFILE_META,
+        )
+        await sync_metadata_edges(
+            profile.id,
+            ArticleType.profile,
+            {**PROFILE_META, "affiliation": ["avengers"]},
+            {"avengers": org.id},
+            db,
+        )
+        await db.commit()
+    resp = await client.get(f"/articles/{org.slug}/members")
+    assert resp.status_code == 200
+    assert expected_text in resp.text
+
+
+async def test_members_page_404(client: AsyncClient) -> None:
+    """Members page returns 404 for a nonexistent article."""
+    assert (await client.get("/articles/nonexistent/members")).status_code == 404

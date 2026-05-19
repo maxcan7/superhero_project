@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% set identifier = article.designation or article.slug %}
+
+{% block title %}Members of {{ identifier }} — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="members-page">
+  <h1>Members of <a href="/articles/{{ article.slug }}">{{ identifier }}</a></h1>
+
+  {% if not grouped_members %}
+  <p class="empty-state">No members found.</p>
+  {% else %}
+    {% for status, entries in grouped_members %}
+    <section class="member-group">
+      <h2><span class="meta-chip meta-chip--{{ status }}">{{ status }}</span></h2>
+      <ul class="member-list">
+        {% for member in entries %}
+        <li class="member-entry">
+          <a href="/articles/{{ member.slug }}" class="member-name">{{ member.designation or member.slug }}</a>
+          {% if member.aliases %}
+          <div class="meta-badges">
+            {% for alias in member.aliases %}
+            <span class="meta-badge">{{ alias }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

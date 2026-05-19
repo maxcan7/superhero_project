@@ -25,6 +25,7 @@ from superhero_project.dependencies import get_current_user_opt
 from superhero_project.domain.infobox import build_infobox_links
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import fetch_incoming_links
+from superhero_project.domain.links import fetch_org_members
 from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.routers._utils import fetch_article
 from superhero_project.routers.articles import _can_edit
@@ -176,6 +177,25 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
                 outgoing, article_db.article_type, article_db.metadata_
             ),
         },
+    )
+
+
+@router.get("/{identifier}/members", response_class=HTMLResponse)
+async def view_org_members(request: Request, identifier: str, db: DB) -> Response:
+    """Render the org member roster derived from affiliation edges."""
+    user = await get_current_user_opt(request, db)
+    article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    members = await fetch_org_members(article_db.id, db)
+    grouped = [
+        (status, list(entries))
+        for status, entries in _groupby(members, key=lambda m: m["status"])
+    ]
+    index, slug_map = await build_link_maps(db)
+    article = _to_out(article_db, index, slug_map)
+    return _templates.TemplateResponse(
+        request=request,
+        name="members.html",
+        context={"article": article, "user": user, "grouped_members": grouped},
     )
 
 

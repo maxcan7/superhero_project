@@ -95,7 +95,7 @@ M10 established the edge table. M11 is the surface area that makes it visible an
   "Linked list" means: for resolved values, use the pre-resolved edges from `article_links` to get the target slug and render as `<a href>`; for values that did not resolve at save time, fall back to the raw metadata string as plain text. Fields with no value set render as "—" or are omitted entirely.
   `superhero_project/templates/infobox/ superhero_project/templates/article.html superhero_project/static/css/`
 
-- [ ] **2.** `feat: add org member roster derived view`
+- [x] **2.** `feat: add org member roster derived view`
   Standalone route at `/articles/{slug}/members` listing all published profiles whose `affiliation` edge points to this org. Linked from the org article page with a "View all members →" link.
 
   Query:

@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
@@ -15,6 +16,7 @@ from superhero_project.domain.links import backfill_on_alias_change
 from superhero_project.domain.links import backfill_on_publish
 from superhero_project.domain.links import build_alias_index
 from superhero_project.domain.links import fetch_incoming_links
+from superhero_project.domain.links import fetch_org_members
 from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.domain.links import render_wikilinks
 from superhero_project.domain.links import sync_metadata_edges
@@ -674,3 +676,100 @@ async def test_backfill_on_alias_change_noop_for_type_without_aliases(
 ) -> None:
     """backfill_on_alias_change is a no-op for article types with no alias fields."""
     await backfill_on_alias_change(999, {}, {}, ArticleType.event, db)
+
+
+# --- fetch_org_members ---
+
+
+@pytest.fixture
+async def org_members_setup(db: AsyncSession, user: User) -> Article:
+    """Org with two affiliated published profiles: active cap, retired war-machine."""
+    org = await make_article(
+        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+    )
+    active = await make_article(
+        db,
+        user,
+        slug="captain-america",
+        article_type=ArticleType.profile,
+        designation="CAPE-0001",
+        metadata_={**PROFILE_META, "status": "active", "aliases": ["Cap"]},
+    )
+    retired = await make_article(
+        db,
+        user,
+        slug="war-machine",
+        article_type=ArticleType.profile,
+        metadata_={**PROFILE_META, "status": "retired"},
+    )
+    index: AliasIndex = {"avengers": org.id}
+    for profile in (active, retired):
+        await sync_metadata_edges(
+            profile.id,
+            ArticleType.profile,
+            {**PROFILE_META, "affiliation": ["avengers"]},
+            index,
+            db,
+        )
+    await db.commit()
+    return org
+
+
+@pytest.mark.parametrize(
+    ("idx", "expected"),
+    [
+        pytest.param(
+            0,
+            {
+                "slug": "captain-america",
+                "designation": "CAPE-0001",
+                "status": "active",
+                "aliases": ["Cap"],
+            },
+            id="active-member-fields",
+        ),
+        pytest.param(
+            1,
+            {
+                "slug": "war-machine",
+                "designation": None,
+                "status": "retired",
+                "aliases": [],
+            },
+            id="retired-member-ordered-after-active",
+        ),
+    ],
+)
+async def test_fetch_org_members(
+    db: AsyncSession, org_members_setup: Article, idx: int, expected: dict
+) -> None:
+    """Members appear in status-then-slug order with correct field shape."""
+    members = await fetch_org_members(org_members_setup.id, db)
+    assert members[idx] == expected
+
+
+@pytest.mark.parametrize("status", [ArticleStatus.draft, ArticleStatus.pending])
+async def test_fetch_org_members_excludes_unpublished(
+    db: AsyncSession, user: User, status: ArticleStatus
+) -> None:
+    """Affiliated profiles that are not published are excluded from the roster."""
+    org = await make_article(
+        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+    )
+    profile = await make_article(
+        db,
+        user,
+        slug="ghost",
+        article_type=ArticleType.profile,
+        metadata_=PROFILE_META,
+        status=status,
+    )
+    await sync_metadata_edges(
+        profile.id,
+        ArticleType.profile,
+        {**PROFILE_META, "affiliation": ["avengers"]},
+        {"avengers": org.id},
+        db,
+    )
+    await db.commit()
+    assert await fetch_org_members(org.id, db) == []
