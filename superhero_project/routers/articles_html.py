@@ -1,5 +1,6 @@
 """Articles HTML view router — template-rendered endpoints."""
 
+from itertools import groupby as _groupby
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -22,6 +23,8 @@ from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.domain.links import build_link_maps
+from superhero_project.domain.links import fetch_incoming_links
+from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.routers._utils import fetch_article
 from superhero_project.routers.articles import _can_edit
 from superhero_project.routers.articles import _compute_diffs
@@ -31,6 +34,20 @@ from superhero_project.routers.articles import _to_out
 _templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 router = APIRouter(prefix="/articles", tags=["articles"])
+
+
+def _group_outgoing_links(
+    links: list[dict[str, str | None]],
+) -> list[tuple[str, list[dict[str, str | None]]]]:
+    """Group outgoing links by field_name into labelled (label, entries) pairs."""
+    result = []
+    for field_name, entries in _groupby(links, key=lambda x: x["field_name"]):
+        if field_name is None:
+            label = "Mentioned in body"
+        else:
+            label = f"Via: {field_name.replace('_', ' ').title()}"
+        result.append((label, list(entries)))
+    return result
 
 
 async def _load_vote_context(
@@ -137,6 +154,8 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
     vote_upvotes, vote_downvotes, vote_score, user_vote = await _load_vote_context(
         article_db.id, user, db
     )
+    outgoing = await fetch_outgoing_links(article_db.id, db)
+    incoming = await fetch_incoming_links(article_db.id, db)
     return _templates.TemplateResponse(
         request=request,
         name="article.html",
@@ -150,6 +169,8 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
             "vote_score": vote_score,
             "user_vote": user_vote,
             "comments": await _load_comments(article_db.id, db),
+            "outgoing_links": _group_outgoing_links(outgoing),
+            "incoming_links": incoming,
         },
     )
 

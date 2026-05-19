@@ -6,9 +6,15 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import Article
+from superhero_project.db.models import ArticleType
 from superhero_project.db.models import Comment
 from superhero_project.db.models import User
 from superhero_project.db.models import Vote
+from superhero_project.domain.links import sync_metadata_edges
+from superhero_project.domain.links import sync_wikilink_edges
+from tests.utils import LOCATION_META
+from tests.utils import PROFILE_META
+from tests.utils import make_article
 
 pytestmark = pytest.mark.anyio
 
@@ -37,6 +43,36 @@ async def test_article_view(
     assert resp.status_code == 200
     for text in expected_texts:
         assert text in resp.text
+
+
+async def test_article_view_reference_panels(
+    client: AsyncClient,
+    published_article: Article,
+    db: AsyncSession,
+    user: User,
+) -> None:
+    """Both ref-panel group labels appear when wikilink and metadata edges exist."""
+    target = await make_article(
+        db,
+        user,
+        slug="gotham",
+        article_type=ArticleType.location,
+        metadata_=LOCATION_META,
+    )
+    index = {"gotham": target.id}
+    await sync_wikilink_edges(published_article.id, "[[gotham]]", index, db)
+    await sync_metadata_edges(
+        published_article.id,
+        ArticleType.profile,
+        {**PROFILE_META, "base_of_operations": "gotham"},
+        index,
+        db,
+    )
+    await db.commit()
+    resp = await client.get(f"/articles/{published_article.slug}/view")
+    assert resp.status_code == 200
+    assert "Mentioned in body" in resp.text
+    assert "Via: Base Of Operations" in resp.text
 
 
 async def test_article_view_404(client: AsyncClient) -> None:

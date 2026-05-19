@@ -11,29 +11,24 @@ from superhero_project.domain.links import AliasIndex
 from superhero_project.domain.links import SlugMap
 from superhero_project.domain.links import _extract_metadata_edges
 from superhero_project.domain.links import build_alias_index
+from superhero_project.domain.links import fetch_incoming_links
+from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.domain.links import render_wikilinks
 from superhero_project.domain.links import sync_metadata_edges
 from superhero_project.domain.links import sync_wikilink_edges
+from tests.utils import COMIC_META
+from tests.utils import EVENT_META
+from tests.utils import LOCATION_META
+from tests.utils import LORE_META
+from tests.utils import ORG_META
+from tests.utils import PROFILE_META
+from tests.utils import TECH_META
 from tests.utils import make_article
 
 pytestmark = pytest.mark.anyio
 
-_ORG_META: dict = {
-    "aliases": [],
-    "org_type": "team",
-    "founded": None,
-    "headquarters": None,
-    "status": "active",
-    "affiliation": [],
-}
-_PROFILE_META: dict = {
-    "aliases": [],
-    "affiliation": [],
-    "powers": [],
-    "status": "active",
-    "base_of_operations": None,
-    "first_appearance": None,
-}
+
+# --- build_alias_index ---
 
 
 @pytest.mark.parametrize(
@@ -43,7 +38,7 @@ _PROFILE_META: dict = {
             "S.H.I.E.L.D",
             ArticleType.org,
             None,
-            {**_ORG_META, "aliases": ["Shield"]},
+            {**ORG_META, "aliases": ["Shield"]},
             ["s.h.i.e.l.d", "shield"],
             id="org-slug-normalized-and-aliases",
         ),
@@ -51,7 +46,7 @@ _PROFILE_META: dict = {
             "iron-man",
             ArticleType.profile,
             "CAPE-0042",
-            {**_PROFILE_META, "aliases": ["Iron Man", "Tony Stark"]},
+            {**PROFILE_META, "aliases": ["Iron Man", "Tony Stark"]},
             ["iron-man", "cape-0042", "iron man", "tony stark"],
             id="profile-slug-designation-aliases",
         ),
@@ -90,7 +85,7 @@ async def test_unpublished_excluded(
         user,
         slug="secret",
         article_type=ArticleType.profile,
-        metadata_=_PROFILE_META,
+        metadata_=PROFILE_META,
         status=status,
     )
     assert "secret" not in await build_alias_index(db)
@@ -183,14 +178,14 @@ async def test_sync_wikilink_edges(
 ) -> None:
     """Wikilink edges are created, deduplicated, and dropped for unresolved targets."""
     target = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=_ORG_META
+        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     source = await make_article(
         db,
         user,
         slug="source",
         article_type=ArticleType.profile,
-        metadata_=_PROFILE_META,
+        metadata_=PROFILE_META,
     )
     index: AliasIndex = {alias: target.id for alias in aliases}
     await sync_wikilink_edges(source.id, content, index, db)
@@ -203,14 +198,14 @@ async def test_sync_wikilink_edges_replaces_on_resave(
 ) -> None:
     """Re-syncing clears old wikilink edges before writing fresh ones."""
     target = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=_ORG_META
+        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     source = await make_article(
         db,
         user,
         slug="spider-man",
         article_type=ArticleType.profile,
-        metadata_=_PROFILE_META,
+        metadata_=PROFILE_META,
     )
     index: AliasIndex = {"avengers": target.id}
     await sync_wikilink_edges(source.id, "[[Avengers]]", index, db)
@@ -222,117 +217,90 @@ async def test_sync_wikilink_edges_replaces_on_resave(
 
 # --- _extract_metadata_edges (pure unit tests, no DB) ---
 
-_EVENT_META: dict = {
-    "event_date": None,
-    "location": None,
-    "participants": [],
-    "outcome": None,
-}
-_LOCATION_META: dict = {
-    "location_type": "city",
-    "region": None,
-    "status": "unknown",
-    "notable_residents": [],
-}
-_TECH_META: dict = {
-    "tech_type": "gear",
-    "origin": None,
-    "current_holder": None,
-    "status": "unknown",
-}
-_LORE_META: dict = {"category": "other", "related_articles": []}
-_COMIC_META: dict = {
-    "comic_type": "series",
-    "publishers": [],
-    "first_issue": None,
-    "last_issue": None,
-    "status": "unknown",
-}
-
 
 @pytest.mark.parametrize(
     ("article_type", "metadata", "index", "expected"),
     [
         pytest.param(
             ArticleType.profile,
-            {**_PROFILE_META, "affiliation": ["target"]},
+            {**PROFILE_META, "affiliation": ["target"]},
             {"target": 99},
             [(99, "affiliation", "target")],
             id="profile-affiliation-list",
         ),
         pytest.param(
             ArticleType.profile,
-            {**_PROFILE_META, "base_of_operations": "target"},
+            {**PROFILE_META, "base_of_operations": "target"},
             {"target": 99},
             [(99, "base_of_operations", "target")],
             id="profile-base-scalar",
         ),
         pytest.param(
             ArticleType.event,
-            {**_EVENT_META, "location": "target"},
+            {**EVENT_META, "location": "target"},
             {"target": 99},
             [(99, "location", "target")],
             id="event-location-scalar",
         ),
         pytest.param(
             ArticleType.event,
-            {**_EVENT_META, "participants": ["target"]},
+            {**EVENT_META, "participants": ["target"]},
             {"target": 99},
             [(99, "participants", "target")],
             id="event-participants-list",
         ),
         pytest.param(
             ArticleType.org,
-            {**_ORG_META, "headquarters": "target"},
+            {**ORG_META, "headquarters": "target"},
             {"target": 99},
             [(99, "headquarters", "target")],
             id="org-headquarters-scalar",
         ),
         pytest.param(
             ArticleType.org,
-            {**_ORG_META, "affiliation": ["target"]},
+            {**ORG_META, "affiliation": ["target"]},
             {"target": 99},
             [(99, "affiliation", "target")],
             id="org-affiliation-list",
         ),
         pytest.param(
             ArticleType.location,
-            {**_LOCATION_META, "notable_residents": ["target"]},
+            {**LOCATION_META, "notable_residents": ["target"]},
             {"target": 99},
             [(99, "notable_residents", "target")],
             id="location-residents-list",
         ),
         pytest.param(
             ArticleType.tech,
-            {**_TECH_META, "current_holder": "target"},
+            {**TECH_META, "current_holder": "target"},
             {"target": 99},
             [(99, "current_holder", "target")],
             id="tech-holder-scalar",
         ),
         pytest.param(
             ArticleType.lore,
-            {**_LORE_META, "related_articles": ["target"]},
+            {**LORE_META, "related_articles": ["target"]},
             {"target": 99},
             [(99, "related_articles", "target")],
             id="lore-related-list",
         ),
         pytest.param(
             ArticleType.comic,
-            {**_COMIC_META, "publishers": ["target"]},
+            {**COMIC_META, "publishers": ["target"]},
             {"target": 99},
             [(99, "publishers", "target")],
             id="comic-publishers-list",
         ),
         pytest.param(
             ArticleType.profile,
-            {**_PROFILE_META, "affiliation": ["nobody"]},
+            {**PROFILE_META, "affiliation": ["nobody"]},
             {},
             [],
             id="drops-unresolved",
         ),
         pytest.param(
             ArticleType.profile,
-            {**_PROFILE_META, "affiliation": ["target", "alias"]},
+            {**PROFILE_META, "affiliation": ["target", "alias"]},
             {"target": 99, "alias": 99},
             [(99, "affiliation", "alias")],
             id="deduplicates",
@@ -380,14 +348,14 @@ async def metadata_edge_pair(db: AsyncSession, user: User) -> tuple:
         user,
         slug="gotham",
         article_type=ArticleType.location,
-        metadata_=_LOCATION_META,
+        metadata_=LOCATION_META,
     )
     source = await make_article(
         db,
         user,
         slug="batman",
         article_type=ArticleType.profile,
-        metadata_=_PROFILE_META,
+        metadata_=PROFILE_META,
     )
     return target, source, {"gotham": target.id}
 
@@ -400,7 +368,7 @@ async def test_sync_metadata_edges_writes_to_db(
     await sync_metadata_edges(
         source.id,
         ArticleType.profile,
-        {**_PROFILE_META, "base_of_operations": "gotham"},
+        {**PROFILE_META, "base_of_operations": "gotham"},
         index,
         db,
     )
@@ -422,11 +390,170 @@ async def test_sync_metadata_edges_replaces_on_resave(
     await sync_metadata_edges(
         source.id,
         ArticleType.profile,
-        {**_PROFILE_META, "base_of_operations": "gotham"},
+        {**PROFILE_META, "base_of_operations": "gotham"},
         index,
         db,
     )
     await db.commit()
-    await sync_metadata_edges(source.id, ArticleType.profile, _PROFILE_META, index, db)
+    await sync_metadata_edges(source.id, ArticleType.profile, PROFILE_META, index, db)
     await db.commit()
     assert await _get_metadata_edges(db, source.id) == []
+
+
+# --- fetch_outgoing_links / fetch_incoming_links (integration tests with DB) ---
+
+
+@pytest.mark.parametrize(
+    ("content", "meta_override", "expected"),
+    [
+        pytest.param(
+            "[[gotham]]",
+            {},
+            [{"slug": "gotham", "article_type": "location", "field_name": None}],
+            id="wikilink-edge",
+        ),
+        pytest.param(
+            "",
+            {"base_of_operations": "gotham"},
+            [
+                {
+                    "slug": "gotham",
+                    "article_type": "location",
+                    "field_name": "base_of_operations",
+                }
+            ],
+            id="metadata-edge",
+        ),
+        pytest.param(
+            "[[gotham]]",
+            {"base_of_operations": "gotham"},
+            [
+                {"slug": "gotham", "article_type": "location", "field_name": None},
+                {
+                    "slug": "gotham",
+                    "article_type": "location",
+                    "field_name": "base_of_operations",
+                },
+            ],
+            id="wikilink-and-metadata-edge",
+        ),
+    ],
+)
+async def test_fetch_outgoing_links(
+    db: AsyncSession,
+    user: User,
+    content: str,
+    meta_override: dict,
+    expected: list[dict],
+) -> None:
+    """Outgoing wikilink and metadata edges appear in fetch_outgoing_links results."""
+    target = await make_article(
+        db,
+        user,
+        slug="gotham",
+        article_type=ArticleType.location,
+        metadata_=LOCATION_META,
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="batman",
+        article_type=ArticleType.profile,
+        metadata_={**PROFILE_META, **meta_override},
+        content=content,
+    )
+    index: AliasIndex = {"gotham": target.id}
+    await sync_wikilink_edges(source.id, content, index, db)
+    await sync_metadata_edges(
+        source.id, ArticleType.profile, {**PROFILE_META, **meta_override}, index, db
+    )
+    await db.commit()
+    assert await fetch_outgoing_links(source.id, db) == expected
+
+
+async def test_fetch_incoming_links(db: AsyncSession, user: User) -> None:
+    """Incoming wikilink and metadata edges appear in fetch_incoming_links results."""
+    target = await make_article(
+        db,
+        user,
+        slug="gotham",
+        article_type=ArticleType.location,
+        metadata_=LOCATION_META,
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="batman",
+        article_type=ArticleType.profile,
+        metadata_={**PROFILE_META, "base_of_operations": "gotham"},
+    )
+    index: AliasIndex = {"gotham": target.id}
+    await sync_wikilink_edges(source.id, "[[gotham]]", index, db)
+    await sync_metadata_edges(
+        source.id,
+        ArticleType.profile,
+        {**PROFILE_META, "base_of_operations": "gotham"},
+        index,
+        db,
+    )
+    await db.commit()
+    rows = await fetch_incoming_links(target.id, db)
+    assert rows == [
+        {"slug": "batman", "article_type": "profile", "field_name": None},
+        {
+            "slug": "batman",
+            "article_type": "profile",
+            "field_name": "base_of_operations",
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    ("target_status", "source_status", "fetch_fn", "article_role"),
+    [
+        pytest.param(
+            ArticleStatus.draft,
+            ArticleStatus.published,
+            fetch_outgoing_links,
+            "source",
+            id="outgoing-excludes-draft-target",
+        ),
+        pytest.param(
+            ArticleStatus.published,
+            ArticleStatus.draft,
+            fetch_incoming_links,
+            "target",
+            id="incoming-excludes-draft-source",
+        ),
+    ],
+)
+async def test_fetch_links_excludes_unpublished(
+    db: AsyncSession,
+    user: User,
+    target_status: ArticleStatus,
+    source_status: ArticleStatus,
+    fetch_fn,
+    article_role: str,
+) -> None:
+    """Edges to/from unpublished articles are excluded from fetch results."""
+    target = await make_article(
+        db,
+        user,
+        slug="gotham",
+        article_type=ArticleType.location,
+        metadata_=LOCATION_META,
+        status=target_status,
+    )
+    source = await make_article(
+        db,
+        user,
+        slug="batman",
+        article_type=ArticleType.profile,
+        metadata_=PROFILE_META,
+        status=source_status,
+    )
+    index: AliasIndex = {"gotham": target.id}
+    await sync_wikilink_edges(source.id, "[[gotham]]", index, db)
+    await db.commit()
+    article_id = source.id if article_role == "source" else target.id
+    assert await fetch_fn(article_id, db) == []

@@ -193,6 +193,44 @@ def _extract_metadata_edges(
     return [(tid, fname, via) for (tid, fname), via in seen.items()]
 
 
+async def fetch_outgoing_links(
+    article_id: int, db: AsyncSession
+) -> list[dict[str, str | None]]:
+    """Return outgoing edges for an article: resolved wikilinks and metadata edges."""
+    rows = await db.execute(
+        text(
+            "SELECT a.slug, a.article_type, al.field_name"
+            " FROM article_links al JOIN articles a ON a.id = al.target_id"
+            " WHERE al.source_id = :id AND a.status = 'published'"
+            " ORDER BY al.field_name NULLS FIRST, a.article_type"
+        ),
+        {"id": article_id},
+    )
+    return [
+        {"slug": r.slug, "article_type": r.article_type, "field_name": r.field_name}
+        for r in rows
+    ]
+
+
+async def fetch_incoming_links(
+    article_id: int, db: AsyncSession
+) -> list[dict[str, str | None]]:
+    """Return incoming edges for an article: articles that link here."""
+    rows = await db.execute(
+        text(
+            "SELECT a.slug, a.article_type, al.field_name"
+            " FROM article_links al JOIN articles a ON a.id = al.source_id"
+            " WHERE al.target_id = :id AND a.status = 'published'"
+            " ORDER BY a.article_type, al.field_name NULLS FIRST"
+        ),
+        {"id": article_id},
+    )
+    return [
+        {"slug": r.slug, "article_type": r.article_type, "field_name": r.field_name}
+        for r in rows
+    ]
+
+
 async def sync_metadata_edges(
     source_id: int,
     article_type: ArticleType,

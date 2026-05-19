@@ -61,6 +61,41 @@
       {{ article.rendered_body | safe }}
     </article>
 
+    {% if outgoing_links or incoming_links %}
+    <div class="ref-panels">
+      {% if outgoing_links %}
+      <section class="ref-panel">
+        <h3 class="ref-panel-heading">References</h3>
+        {% for group_label, entries in outgoing_links %}
+        <div class="ref-group">
+          <h4 class="ref-group-label">{{ group_label }}</h4>
+          <div class="ref-chips">
+            {% for entry in entries %}
+            <a href="/articles/{{ entry.slug }}" class="article-chip">
+              <span class="chip-type">{{ entry.article_type }}</span>{{ entry.slug }}
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if incoming_links %}
+      <section class="ref-panel">
+        <h3 class="ref-panel-heading">Referenced by</h3>
+        <div class="ref-chips">
+          {% for entry in incoming_links %}
+          <a href="/articles/{{ entry.slug }}" class="article-chip">
+            <span class="chip-type">{{ entry.article_type }}</span>{{ entry.slug }}
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div class="vote-bar"
          data-user-vote="{{ user_vote if user_vote is not none else '' }}">
       <button id="vote-up"

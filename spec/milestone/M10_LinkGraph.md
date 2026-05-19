@@ -143,7 +143,7 @@ The alias index is the shared lookup that makes both passes work. It maps every 
   On save: delete all existing metadata edges for this source (`field_name IS NOT NULL`), re-extract, insert resolved edges. Called in the same save path as the wikilink parser, after `_validate_metadata`.
   `superhero_project/domain/links.py superhero_project/routers/articles.py`
 
-- [ ] **5.** `feat: add reference panels to article template`
+- [x] **5.** `feat: add reference panels to article template`
   Two panels rendered below the article body, both derived from `article_links`.
 
   Outgoing ("References" — what this article links to):
