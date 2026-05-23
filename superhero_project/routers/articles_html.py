@@ -1,7 +1,6 @@
 """Articles HTML view router — template-rendered endpoints."""
 
 from itertools import groupby as _groupby
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
@@ -9,7 +8,6 @@ from fastapi import HTTPException
 from fastapi import Query
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import ColumnElement
 from sqlalchemy import Select
 from sqlalchemy import func
@@ -21,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.responses import Response
 
+from superhero_project._templates import templates as _templates
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleTag
@@ -43,9 +42,9 @@ from superhero_project.routers.articles import _compute_diffs
 from superhero_project.routers.articles import _load_history
 from superhero_project.routers.articles import _to_out
 
-_templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
-
 router = APIRouter(prefix="/articles", tags=["articles"])
+
+_CREATABLE_ARTICLE_TYPES = [t for t in ArticleType if t.creatable]
 
 
 def _group_outgoing_links(
@@ -119,7 +118,13 @@ async def new_article_form(request: Request, db: DB) -> Response:
     return _templates.TemplateResponse(
         request=request,
         name="editor.html",
-        context={"user": user, "article": None, "identifier": None},
+        context={
+            "user": user,
+            "article": None,
+            "identifier": None,
+            "article_types": _CREATABLE_ARTICLE_TYPES,
+            "article_type_label": None,
+        },
     )
 
 
@@ -366,5 +371,7 @@ async def edit_article_form(request: Request, identifier: str, db: DB) -> Respon
             "user": user,
             "article": article,
             "identifier": article.designation or article.slug,
+            "article_types": _CREATABLE_ARTICLE_TYPES,
+            "article_type_label": article_db.article_type.label,
         },
     )

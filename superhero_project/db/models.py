@@ -46,6 +46,25 @@ class ArticleType(StrEnum):
     comic = "comic"
     disambiguation = "disambiguation"
 
+    @property
+    def label(self) -> str:
+        """Human-readable display name.
+
+        Two types don't title-case cleanly from their value, so they get explicit
+        overrides.
+        """
+        overrides = {"org": "Organization", "tech": "Tech / Artifact"}
+        return overrides.get(self.value, self.value.replace("_", " ").title())
+
+    @property
+    def creatable(self) -> bool:
+        """Whether contributors may create this type.
+
+        Disambiguation pages are moderator-managed and excluded from the editor type
+        picker.
+        """
+        return self is not ArticleType.disambiguation
+
 
 class ArticleStatus(StrEnum):
     """Publication lifecycle state of an article."""

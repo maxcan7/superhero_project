@@ -17,7 +17,7 @@
       {% if article %}
         <div class="form-group">
           <span class="form-label">Type</span>
-          <span class="editor-type-label">{{ article.article_type | replace('_', ' ') | title }}</span>
+          <span class="editor-type-label">{{ article_type_label }}</span>
         </div>
         <input type="hidden" id="article-type" value="{{ article.article_type }}">
       {% else %}
@@ -25,12 +25,9 @@
           <label class="form-label" for="article-type">Type</label>
           <select id="article-type" class="form-select" required>
             <option value="">— select type —</option>
-            <option value="profile">Profile</option>
-            <option value="event">Event</option>
-            <option value="org">Organization</option>
-            <option value="location">Location</option>
-            <option value="tech">Tech / Artifact</option>
-            <option value="lore">Lore</option>
+            {% for t in article_types %}
+            <option value="{{ t.value }}">{{ t.label }}</option>
+            {% endfor %}
           </select>
         </div>
 
@@ -64,10 +61,8 @@
         <div class="form-group">
           <label class="form-label">Status</label>
           <select class="form-select" data-meta="status">
-            {{ opt('unknown', pm.get('status', 'unknown')) }}
-            {{ opt('active', pm.get('status', 'unknown')) }}
-            {{ opt('retired', pm.get('status', 'unknown')) }}
-            {{ opt('deceased', pm.get('status', 'unknown')) }}
+            {% set current = pm.get('status', 'unknown') %}
+            {% for s in ProfileStatus %}{{ opt(s.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
@@ -121,20 +116,15 @@
         <div class="form-group">
           <label class="form-label">Type</label>
           <select class="form-select" data-meta="org_type">
-            {{ opt('other', om.get('org_type', 'other')) }}
-            {{ opt('team', om.get('org_type', 'other')) }}
-            {{ opt('agency', om.get('org_type', 'other')) }}
-            {{ opt('corporation', om.get('org_type', 'other')) }}
-            {{ opt('cult', om.get('org_type', 'other')) }}
+            {% set current = om.get('org_type', 'other') %}
+            {% for t in OrgType %}{{ opt(t.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Status</label>
           <select class="form-select" data-meta="status">
-            {{ opt('unknown', om.get('status', 'unknown')) }}
-            {{ opt('active', om.get('status', 'unknown')) }}
-            {{ opt('disbanded', om.get('status', 'unknown')) }}
-            {{ opt('defunct', om.get('status', 'unknown')) }}
+            {% set current = om.get('status', 'unknown') %}
+            {% for s in OrgStatus %}{{ opt(s.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
@@ -161,11 +151,8 @@
         <div class="form-group">
           <label class="form-label">Type</label>
           <select class="form-select" data-meta="location_type">
-            {{ opt('other', lm.get('location_type', 'other')) }}
-            {{ opt('city', lm.get('location_type', 'other')) }}
-            {{ opt('base', lm.get('location_type', 'other')) }}
-            {{ opt('zone', lm.get('location_type', 'other')) }}
-            {{ opt('dimension', lm.get('location_type', 'other')) }}
+            {% set current = lm.get('location_type', 'other') %}
+            {% for t in LocationType %}{{ opt(t.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
@@ -176,10 +163,8 @@
         <div class="form-group">
           <label class="form-label">Status</label>
           <select class="form-select" data-meta="status">
-            {{ opt('unknown', lm.get('status', 'unknown')) }}
-            {{ opt('active', lm.get('status', 'unknown')) }}
-            {{ opt('destroyed', lm.get('status', 'unknown')) }}
-            {{ opt('abandoned', lm.get('status', 'unknown')) }}
+            {% set current = lm.get('status', 'unknown') %}
+            {% for s in LocationStatus %}{{ opt(s.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
@@ -196,12 +181,8 @@
         <div class="form-group">
           <label class="form-label">Type</label>
           <select class="form-select" data-meta="tech_type">
-            {{ opt('other', tm.get('tech_type', 'other')) }}
-            {{ opt('gear', tm.get('tech_type', 'other')) }}
-            {{ opt('serum', tm.get('tech_type', 'other')) }}
-            {{ opt('relic', tm.get('tech_type', 'other')) }}
-            {{ opt('weapon', tm.get('tech_type', 'other')) }}
-            {{ opt('vehicle', tm.get('tech_type', 'other')) }}
+            {% set current = tm.get('tech_type', 'other') %}
+            {% for t in TechType %}{{ opt(t.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
@@ -217,10 +198,8 @@
         <div class="form-group">
           <label class="form-label">Status</label>
           <select class="form-select" data-meta="status">
-            {{ opt('unknown', tm.get('status', 'unknown')) }}
-            {{ opt('active', tm.get('status', 'unknown')) }}
-            {{ opt('destroyed', tm.get('status', 'unknown')) }}
-            {{ opt('lost', tm.get('status', 'unknown')) }}
+            {% set current = tm.get('status', 'unknown') %}
+            {% for s in TechStatus %}{{ opt(s.value, current) }}{% endfor %}
           </select>
         </div>
       </fieldset>
@@ -232,18 +211,49 @@
         <div class="form-group">
           <label class="form-label">Category</label>
           <select class="form-select" data-meta="category">
-            {{ opt('other', lore_m.get('category', 'other')) }}
-            {{ opt('power_system', lore_m.get('category', 'other')) }}
-            {{ opt('history', lore_m.get('category', 'other')) }}
-            {{ opt('law', lore_m.get('category', 'other')) }}
-            {{ opt('geography', lore_m.get('category', 'other')) }}
-            {{ opt('culture', lore_m.get('category', 'other')) }}
+            {% set current = lore_m.get('category', 'other') %}
+            {% for c in LoreCategory %}{{ opt(c.value, current) }}{% endfor %}
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Related Articles <span class="form-hint-inline">(comma-separated)</span></label>
           <input type="text" class="form-input" data-meta="related_articles" data-list="true"
                  value="{{ lore_m.get('related_articles', []) | join(', ') }}">
+        </div>
+      </fieldset>
+
+      {# ── Comic ────────────────────────────────────────────────────────────── #}
+      {% set cm = article.metadata if article and article.article_type == 'comic' else {} %}
+      <fieldset class="meta-fieldset" id="meta-comic" hidden>
+        <legend>Comic Details</legend>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" data-meta="comic_type">
+            {% set current = cm.get('comic_type', 'series') %}
+            {% for t in ComicType %}{{ opt(t.value, current) }}{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Publishers <span class="form-hint-inline">(comma-separated)</span></label>
+          <input type="text" class="form-input" data-meta="publishers" data-list="true"
+                 value="{{ cm.get('publishers', []) | join(', ') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">First Issue</label>
+          <input type="text" class="form-input" data-meta="first_issue"
+                 value="{{ cm.get('first_issue') or '' }}" placeholder="e.g. Issue #1, 1987">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Issue</label>
+          <input type="text" class="form-input" data-meta="last_issue"
+                 value="{{ cm.get('last_issue') or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" data-meta="status">
+            {% set current = cm.get('status', 'unknown') %}
+            {% for s in ComicStatus %}{{ opt(s.value, current) }}{% endfor %}
+          </select>
         </div>
       </fieldset>
 
