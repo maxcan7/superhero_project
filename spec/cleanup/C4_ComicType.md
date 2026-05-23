@@ -33,7 +33,7 @@ ComicMetadata:
   status       ongoing | completed | cancelled | unknown
 ```
 
-Slug convention: same as other non-profile types (`rebis-bondi`, `spider-man`).
+Page name convention: same for all types (`rebis-bondi`, `ms-marvel`).
 
 ---
 

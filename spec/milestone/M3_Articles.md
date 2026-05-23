@@ -1,7 +1,7 @@
 # M3: Articles
 Status: complete
 
-Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
+Article CRUD, per-type Pydantic schemas, Markdown rendering, page_name routing.
 
 ---
 
@@ -10,7 +10,7 @@ Article CRUD, per-type Pydantic schemas, Markdown rendering, slug routing.
   `superhero_project/domain/profile.py superhero_project/domain/event.py superhero_project/domain/org.py superhero_project/domain/location.py superhero_project/domain/tech.py superhero_project/domain/lore.py`
 
 - [x] **2.** `feat: add articles router with CRUD, slug routing, and Markdown rendering`
-  Create/read/update/delete; designation routing for profiles, slug routing for all others; markdown-it-py body rendering.
+  Create/read/update/delete; page_name routing for all types; markdown-it-py body rendering.
   `superhero_project/routers/articles.py`
 
 - [x] **3.** `feat: add base and article Jinja2 templates`
