@@ -13,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import ColumnElement
 from sqlalchemy import Select
 from sqlalchemy import func
+from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import type_coerce
 from sqlalchemy.dialects.postgresql import JSONB
@@ -22,6 +23,7 @@ from starlette.responses import Response
 
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
+from superhero_project.db.models import ArticleTag
 from superhero_project.db.models import ArticleType
 from superhero_project.db.models import Comment
 from superhero_project.db.models import User
@@ -176,9 +178,9 @@ def _metadata_conditions(
         (location_type, "location_type"),
         (org_type, "org_type"),
     ]:
-        if val is not None:
+        if val:
             conditions.append(_jsonb_contains(key, val.lower()))
-    if powers is not None:
+    if powers:
         conditions.append(_jsonb_contains("powers", [powers.lower()]))
     return conditions
 
@@ -201,7 +203,11 @@ def _build_search_stmt(
     order_by: ColumnElement[Any] = Article.slug.asc()
     if q is not None:
         fts_cond, order_by = _fts_condition(q)
-        conditions.append(fts_cond)
+        safe_q = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        tag_cond = Article.id.in_(
+            select(ArticleTag.article_id).where(ArticleTag.tag.ilike(f"%{safe_q}%"))
+        )
+        conditions.append(or_(fts_cond, tag_cond))
 
     conditions.extend(_metadata_conditions(status, powers, location_type, org_type))
 
