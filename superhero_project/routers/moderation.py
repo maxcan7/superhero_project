@@ -2,20 +2,19 @@
 
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.responses import Response
 
+from superhero_project._templates import templates as _templates
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
@@ -27,8 +26,6 @@ from superhero_project.domain.links import backfill_on_publish
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import sync_wikilink_edges
 from superhero_project.routers._utils import fetch_article
-
-_templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 router = APIRouter(prefix="/moderation", tags=["moderation"])
 

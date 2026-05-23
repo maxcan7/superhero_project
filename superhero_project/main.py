@@ -7,13 +7,13 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
+from superhero_project._templates import templates as _templates
 from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
@@ -29,8 +29,6 @@ from superhero_project.routers import moderation
 from superhero_project.routers import votes
 from superhero_project.routers._utils import ArticleListItem
 from superhero_project.routers._utils import article_list_item
-
-_templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
 async def _recent_articles(db: AsyncSession) -> list[ArticleListItem]:

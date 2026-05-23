@@ -1,17 +1,15 @@
 """Community router: tag browsing, contributor profiles, and personal pages."""
 
-from pathlib import Path
-
 from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from starlette.responses import Response
 
+from superhero_project._templates import templates as _templates
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleTag
@@ -21,8 +19,6 @@ from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.routers._utils import article_list_item
-
-_templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 tags_router = APIRouter(prefix="/tags", tags=["tags"])
 contributors_router = APIRouter(prefix="/contributors", tags=["contributors"])
