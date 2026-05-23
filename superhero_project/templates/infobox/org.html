@@ -28,7 +28,7 @@
   {% if hq %}
   <div class="infobox-row">
     <dt>Headquarters</dt>
-    <dd>{% for item in hq %}{% if item.resolved %}<a href="/articles/{{ item.slug }}">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
+    <dd>{% for item in hq %}{% if item.resolved %}<a href="/articles/{{ item.slug }}/view">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
   </div>
   {% endif %}
 
@@ -46,7 +46,7 @@
     <dd><div class="meta-link-list">
       {% for item in affil %}
         {% if item.resolved %}
-          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+          <a href="/articles/{{ item.slug }}/view">{{ item.slug }}</a>
         {% else %}
           <span class="meta-plain">{{ item.label }}</span>
         {% endif %}

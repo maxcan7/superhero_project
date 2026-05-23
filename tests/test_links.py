@@ -116,14 +116,14 @@ async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> Non
             "See [[Iron Man]].",
             {"iron man": 1},
             {1: "iron-man"},
-            'See <a href="/articles/iron-man">Iron Man</a>.',
+            'See <a href="/articles/iron-man/view">Iron Man</a>.',
             id="resolved",
         ),
         pytest.param(
             "[[Iron Man|Tony]]",
             {"iron man": 1},
             {1: "iron-man"},
-            '<a href="/articles/iron-man">Tony</a>',
+            '<a href="/articles/iron-man/view">Tony</a>',
             id="resolved-display-text",
         ),
         pytest.param(
@@ -138,7 +138,7 @@ async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> Non
             "[[Avengers]] and [[Ghost]].",
             {"avengers": 1},
             {1: "avengers"},
-            '<a href="/articles/avengers">Avengers</a>'
+            '<a href="/articles/avengers/view">Avengers</a>'
             ' and <a href="/articles/new?slug=ghost" class="red-link">Ghost</a>.',
             id="mixed-resolved-and-unresolved",
         ),
@@ -146,7 +146,7 @@ async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> Non
             "[[Mercury]]",
             {"mercury": 5},
             {5: "mercury"},
-            '<a href="/articles/mercury">Mercury</a>',
+            '<a href="/articles/mercury/view">Mercury</a>',
             id="disambiguation-page-link",
         ),
     ],

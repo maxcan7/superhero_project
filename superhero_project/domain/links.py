@@ -123,7 +123,7 @@ def render_wikilinks(content: str, index: AliasIndex, slug_map: SlugMap) -> str:
         article_id = index.get(normalized)
         if article_id is not None:
             slug = slug_map[article_id]
-            return f'<a href="/articles/{slug}">{display}</a>'
+            return f'<a href="/articles/{slug}/view">{display}</a>'
         return (
             f'<a href="/articles/new?slug={normalized}" class="red-link">{target}</a>'
         )

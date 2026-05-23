@@ -63,7 +63,7 @@
           <h4 class="ref-group-label">{{ group_label }}</h4>
           <div class="ref-chips">
             {% for entry in entries %}
-            <a href="/articles/{{ entry.slug }}" class="article-chip">
+            <a href="/articles/{{ entry.slug }}/view" class="article-chip">
               <span class="chip-type">{{ entry.article_type }}</span>{{ entry.slug }}
             </a>
             {% endfor %}
@@ -78,7 +78,7 @@
         <h3 class="ref-panel-heading">Referenced by</h3>
         <div class="ref-chips">
           {% for entry in incoming_links %}
-          <a href="/articles/{{ entry.slug }}" class="article-chip">
+          <a href="/articles/{{ entry.slug }}/view" class="article-chip">
             <span class="chip-type">{{ entry.article_type }}</span>{{ entry.slug }}
           </a>
           {% endfor %}

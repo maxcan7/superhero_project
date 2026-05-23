@@ -27,7 +27,7 @@
     <dd><div class="meta-link-list">
       {% for item in residents %}
         {% if item.resolved %}
-          <a href="/articles/{{ item.slug }}">{{ item.slug }}</a>
+          <a href="/articles/{{ item.slug }}/view">{{ item.slug }}</a>
         {% else %}
           <span class="meta-plain">{{ item.label }}</span>
         {% endif %}

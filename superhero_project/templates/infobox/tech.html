@@ -17,7 +17,7 @@
   {% if holder %}
   <div class="infobox-row">
     <dt>Current Holder</dt>
-    <dd>{% for item in holder %}{% if item.resolved %}<a href="/articles/{{ item.slug }}">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
+    <dd>{% for item in holder %}{% if item.resolved %}<a href="/articles/{{ item.slug }}/view">{{ item.slug }}</a>{% else %}{{ item.label }}{% endif %}{% endfor %}</dd>
   </div>
   {% endif %}
 
