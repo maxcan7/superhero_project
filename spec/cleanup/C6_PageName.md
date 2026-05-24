@@ -64,7 +64,7 @@ This cleanup collapses all of that:
     `"identifier": article.page_name`.
   `superhero_project/routers/_utils.py superhero_project/routers/articles.py superhero_project/routers/moderation.py superhero_project/routers/articles_html.py`
 
-- [ ] **4.** `refactor(templates): rename Slug→Page name, show for all types`
+- [x] **4.** `refactor(templates): rename Slug→Page name, show for all types`
   In `templates/editor.html`:
   - Change `id="slug-group"` → `id="page-name-group"`.
   - Change label text from `Slug` to `Page name`.

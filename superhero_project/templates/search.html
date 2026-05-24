@@ -93,8 +93,8 @@
         <ul class="article-list">
           {% for article in results %}
             <li class="article-list-item">
-              <a href="/articles/{{ article.designation or article.slug }}/view">
-                {{ article.designation or article.slug }}
+              <a href="/articles/{{ article.page_name }}/view">
+                {{ article.page_name }}
               </a>
               <span class="article-type-badge">{{ article.article_type }}</span>
               {% if article.tags %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% set identifier = article.designation or article.slug %}
+{% set identifier = article.page_name %}
 
 {% block title %}{{ identifier }} — Superhero Wiki{% endblock %}
 
@@ -9,9 +9,6 @@
 
   <aside class="metadata-sidebar">
     <div class="article-type-badge">{{ article.article_type }}</div>
-    {% if article.designation %}
-      <p class="designation">{{ article.designation }}</p>
-    {% endif %}
 
     {% if article.article_type != 'disambiguation' %}
       {% include "infobox/" + article.article_type + ".html" %}
@@ -63,8 +60,8 @@
           <h4 class="ref-group-label">{{ group_label }}</h4>
           <div class="ref-chips">
             {% for entry in entries %}
-            <a href="/articles/{{ entry.slug }}/view" class="article-chip">
-              <span class="chip-type">{{ entry.article_type }}</span>{{ entry.slug }}
+            <a href="/articles/{{ entry.page_name }}/view" class="article-chip">
+              <span class="chip-type">{{ entry.article_type }}</span>{{ entry.page_name }}
             </a>
             {% endfor %}
           </div>
@@ -78,8 +75,8 @@
         <h3 class="ref-panel-heading">Referenced by</h3>
         <div class="ref-chips">
           {% for entry in incoming_links %}
-          <a href="/articles/{{ entry.slug }}/view" class="article-chip">
-            <span class="chip-type">{{ entry.article_type }}</span>{{ entry.slug }}
+          <a href="/articles/{{ entry.page_name }}/view" class="article-chip">
+            <span class="chip-type">{{ entry.article_type }}</span>{{ entry.page_name }}
           </a>
           {% endfor %}
         </div>

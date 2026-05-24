@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% set identifier = article.designation or article.slug %}
+{% set identifier = article.page_name %}
 
 {% block title %}Members of {{ identifier }} — Superhero Wiki{% endblock %}
 
 {% block content %}
 <div class="members-page">
-  <h1>Members of <a href="/articles/{{ article.slug }}">{{ identifier }}</a></h1>
+  <h1>Members of <a href="/articles/{{ article.page_name }}">{{ identifier }}</a></h1>
 
   {% if not grouped_members %}
   <p class="empty-state">No members found.</p>
@@ -17,7 +17,7 @@
       <ul class="member-list">
         {% for member in entries %}
         <li class="member-entry">
-          <a href="/articles/{{ member.slug }}" class="member-name">{{ member.designation or member.slug }}</a>
+          <a href="/articles/{{ member.page_name }}" class="member-name">{{ member.page_name }}</a>
           {% if member.aliases %}
           <div class="meta-badges">
             {% for alias in member.aliases %}

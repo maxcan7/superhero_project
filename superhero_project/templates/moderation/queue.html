@@ -20,17 +20,17 @@
       </thead>
       <tbody>
         {% for article in articles %}
-        <tr id="row-{{ article.slug }}">
+        <tr id="row-{{ article.page_name }}">
           <td>
-            <a href="/articles/{{ article.slug }}/view">{{ article.designation or article.slug }}</a>
+            <a href="/articles/{{ article.page_name }}/view">{{ article.page_name }}</a>
           </td>
           <td>{{ article.article_type }}</td>
           <td>{{ article.author_name }}</td>
           <td>{{ article.updated_at.strftime("%Y-%m-%d") }}</td>
           <td class="action-cell">
-            <button onclick="moderate('{{ article.slug }}', 'approve')">Approve</button>
-            <button onclick="moderate('{{ article.slug }}', 'reject')">Reject</button>
-            <button onclick="moderate('{{ article.slug }}', 'request-changes')">Request Changes</button>
+            <button onclick="moderate('{{ article.page_name }}', 'approve')">Approve</button>
+            <button onclick="moderate('{{ article.page_name }}', 'reject')">Reject</button>
+            <button onclick="moderate('{{ article.page_name }}', 'request-changes')">Request Changes</button>
           </td>
         </tr>
         {% endfor %}
@@ -42,10 +42,10 @@
 
 {% block scripts %}
 <script>
-async function moderate(slug, action) {
-  const resp = await fetch(`/moderation/${slug}/${action}`, { method: "POST" });
+async function moderate(page_name, action) {
+  const resp = await fetch(`/moderation/${page_name}/${action}`, { method: "POST" });
   if (resp.ok) {
-    const row = document.getElementById(`row-${slug}`);
+    const row = document.getElementById(`row-${page_name}`);
     if (row) row.remove();
     const tbody = document.querySelector(".queue-table tbody");
     if (tbody && tbody.rows.length === 0) {

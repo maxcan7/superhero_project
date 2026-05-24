@@ -13,7 +13,7 @@
     <dd><div class="meta-link-list">
       {% for item in publishers %}
         {% if item.resolved %}
-          <a href="/articles/{{ item.slug }}/view">{{ item.slug }}</a>
+          <a href="/articles/{{ item.page_name }}/view">{{ item.page_name }}</a>
         {% else %}
           <span class="meta-plain">{{ item.label }}</span>
         {% endif %}
