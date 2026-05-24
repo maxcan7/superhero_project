@@ -105,11 +105,10 @@ class Article(Base):
     __tablename__ = "articles"
 
     id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
-    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    page_name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     article_type: Mapped[ArticleType] = mapped_column(
         SAEnum(ArticleType, name="article_type"), nullable=False
     )
-    designation: Mapped[str | None] = mapped_column(String(20))
     schema_version: Mapped[int] = mapped_column(nullable=False, default=1)
     # "metadata" shadows DeclarativeBase.metadata, so we use metadata_ in Python
     metadata_: Mapped[dict[str, Any]] = mapped_column(
