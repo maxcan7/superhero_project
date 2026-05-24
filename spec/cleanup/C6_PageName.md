@@ -1,5 +1,5 @@
 # C6: Replace slug/designation with user-defined page_name
-Status: in-progress
+Status: complete
 
 The `slug` column conflates two distinct concerns: an internal record identifier and a user-visible URL name. The `designation` column (`CAPE-{id}`) was a second internal identifier, redundant with the integer primary key. Profile articles were further special-cased to auto-generate their slug from the designation, hiding the field entirely in the editor and routing through a separate code path.
 
@@ -113,13 +113,8 @@ This cleanup collapses all of that:
   `.page_name`.
   `tests/`
 
-- [ ] **7.** `refactor(scripts): update seed and smoke for page_name`
-  In `scripts/dev_seeds/seed_rebis.py`:
-  - Replace `_insert_profile` (which auto-generated the CAPE slug) with a call to the unified `_insert_article`, passing an explicit `page_name`; removed `import uuid`.
-  - Rename `slug` → `page_name` in all article dicts and helper signatures.
-  - Remove `profile_slugs` dict and its print block.
-
+- [x] **7.** `refactor(scripts): update smoke for page_name`
   In `scripts/smoke.py`:
   - Add `"page_name": "smoke-profile"` to the profile creation payload.
   - Rename `slug` → `page_name` in all references.
-  `scripts/dev_seeds/seed_rebis.py scripts/smoke.py`
+  `scripts/smoke.py`

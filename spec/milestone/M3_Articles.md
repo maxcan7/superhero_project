@@ -9,7 +9,7 @@ Article CRUD, per-type Pydantic schemas, Markdown rendering, page_name routing.
   One Pydantic model per article type; validates JSONB metadata at the app layer.
   `superhero_project/domain/profile.py superhero_project/domain/event.py superhero_project/domain/org.py superhero_project/domain/location.py superhero_project/domain/tech.py superhero_project/domain/lore.py`
 
-- [x] **2.** `feat: add articles router with CRUD, slug routing, and Markdown rendering`
+- [x] **2.** `feat: add articles router with CRUD, page_name routing, and Markdown rendering`
   Create/read/update/delete; page_name routing for all types; markdown-it-py body rendering.
   `superhero_project/routers/articles.py`
 

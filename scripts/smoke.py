@@ -179,13 +179,14 @@ def _create_articles(ctx: _Ctx) -> str | None:
         "/articles/",
         json={
             "article_type": "profile",
+            "page_name": "smoke-profile",
             "metadata": _PROFILE_META,
             "content": "# Smokescreen\n\nA hero shrouded in mystery.",
             "tags": ["smoke-test", "hero"],
         },
     )
     _check(ctx, "POST /articles/ (profile)", r, 201)
-    profile_slug = r.json()["slug"] if r.status_code == 201 else None
+    profile_slug = r.json()["page_name"] if r.status_code == 201 else None
 
     _check(
         ctx,
@@ -194,7 +195,7 @@ def _create_articles(ctx: _Ctx) -> str | None:
             "/articles/",
             json={
                 "article_type": "event",
-                "slug": _EVENT_SLUG,
+                "page_name": _EVENT_SLUG,
                 "metadata": _EVENT_META,
                 "content": "# The Smoke Incident\n\nIt happened fast.",
                 "tags": ["smoke-test"],
