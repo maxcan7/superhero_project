@@ -41,7 +41,7 @@ async def test_article_view(
     """Article view returns 200 and renders the vote bar; logged-in user sees their
     name."""
     c = auth_client if use_auth else client
-    resp = await c.get(f"/articles/{published_article.slug}/view")
+    resp = await c.get(f"/articles/{published_article.page_name}/view")
     assert resp.status_code == 200
     for text in expected_texts:
         assert text in resp.text
@@ -57,7 +57,7 @@ async def test_article_view_reference_panels(
     target = await make_article(
         db,
         user,
-        slug="gotham",
+        page_name="gotham",
         article_type=ArticleType.location,
         metadata_=LOCATION_META,
     )
@@ -71,7 +71,7 @@ async def test_article_view_reference_panels(
         db,
     )
     await db.commit()
-    resp = await client.get(f"/articles/{published_article.slug}/view")
+    resp = await client.get(f"/articles/{published_article.page_name}/view")
     assert resp.status_code == 200
     assert "Mentioned in body" in resp.text
     assert "Via: Base Of Operations" in resp.text
@@ -103,7 +103,7 @@ async def test_article_view_vote_state(
     if vote_value is not None:
         db.add(Vote(article_id=published_article.id, user_id=user.id, value=vote_value))
         await db.commit()
-    resp = await auth_client.get(f"/articles/{published_article.slug}/view")
+    resp = await auth_client.get(f"/articles/{published_article.page_name}/view")
     assert resp.status_code == 200
     assert ("vote-btn--active" in resp.text) == active_present
 
@@ -128,7 +128,7 @@ async def test_article_view_comment_actions(
     author = user if own_comment else other_user
     db.add(Comment(article_id=published_article.id, author_id=author.id, body="A note"))
     await db.commit()
-    resp = await auth_client.get(f"/articles/{published_article.slug}/view")
+    resp = await auth_client.get(f"/articles/{published_article.page_name}/view")
     assert resp.status_code == 200
     assert "A note" in resp.text
     assert ("comment-edit-btn" in resp.text) == expect_actions
@@ -146,10 +146,8 @@ async def test_history_view_renders(
     auth_client: AsyncClient, edited_article: Article
 ) -> None:
     """History view page renders the article identifier."""
-    assert (
-        edited_article.slug
-        in (await auth_client.get(f"/articles/{edited_article.slug}/history/view")).text
-    )
+    url = f"/articles/{edited_article.page_name}/history/view"
+    assert edited_article.page_name in (await auth_client.get(url)).text
 
 
 # ── Search ─────────────────────────────────────────────────────────────────────
@@ -191,7 +189,7 @@ async def test_search_form(
 @pytest.mark.parametrize(
     ("q", "expected_text"),
     [
-        pytest.param("guardian", "CAPE-0001", id="hit"),
+        pytest.param("guardian", "the-guardian", id="hit"),
         pytest.param("xyznotfound", "No results", id="miss"),
     ],
 )
@@ -288,8 +286,10 @@ async def test_search_filter(
     expected_out: str,
 ) -> None:
     """Metadata filter params narrow results to matching articles only."""
-    for slug, atype, meta in articles:
-        await make_article(db, user, slug=slug, article_type=atype, metadata_=meta)
+    for page_name, atype, meta in articles:
+        await make_article(
+            db, user, page_name=page_name, article_type=atype, metadata_=meta
+        )
     resp = await client.get("/articles/search/results", params=params)
     assert resp.status_code == 200
     assert expected_in in resp.text
@@ -303,21 +303,21 @@ async def test_search_filter_composed(
     await make_article(
         db,
         user,
-        slug="active-hero",
+        page_name="active-hero",
         article_type=ArticleType.profile,
         metadata_={**PROFILE_META, "status": "active"},
     )
     await make_article(
         db,
         user,
-        slug="active-org",
+        page_name="active-org",
         article_type=ArticleType.org,
         metadata_={**ORG_META, "status": "active"},
     )
     await make_article(
         db,
         user,
-        slug="unknown-hero",
+        page_name="unknown-hero",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
     )
@@ -335,7 +335,7 @@ async def test_search_filter_case_insensitive(
     await make_article(
         db,
         user,
-        slug="active-hero",
+        page_name="active-hero",
         article_type=ArticleType.profile,
         metadata_={**PROFILE_META, "status": "active"},
     )
@@ -351,7 +351,7 @@ async def test_search_filter_invalid_type(
     await make_article(
         db,
         user,
-        slug="hero-one",
+        page_name="hero-one",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
     )
@@ -367,14 +367,14 @@ async def test_search_filter_invalid_type(
     "url_tmpl",
     [
         pytest.param("/articles/new", id="new"),
-        pytest.param("/articles/{slug}/edit", id="edit"),
+        pytest.param("/articles/{page_name}/edit", id="edit"),
     ],
 )
 async def test_editor_requires_auth(
     client: AsyncClient, published_article: Article, url_tmpl: str
 ) -> None:
     """Editor routes return 401 without a session."""
-    resp = await client.get(url_tmpl.format(slug=published_article.slug))
+    resp = await client.get(url_tmpl.format(page_name=published_article.page_name))
     assert resp.status_code == 401
 
 
@@ -392,7 +392,7 @@ async def test_edit_article_form_access_errors(
 ) -> None:
     """Edit form returns 403 for a non-owner and 404 for a missing article."""
     assert (
-        await other_auth_client.get(f"/articles/{published_article.slug}/edit")
+        await other_auth_client.get(f"/articles/{published_article.page_name}/edit")
     ).status_code == 403
     assert (await auth_client.get("/articles/nonexistent/edit")).status_code == 404
 
@@ -405,7 +405,7 @@ async def test_edit_article_form_renders(
     """Edit form is accessible to author and moderator, pre-populated with existing
     data."""
     for c in (auth_client, mod_auth_client):
-        resp = await c.get(f"/articles/{published_article.slug}/edit")
+        resp = await c.get(f"/articles/{published_article.page_name}/edit")
         assert resp.status_code == 200
         assert 'data-mode="edit"' in resp.text
         assert "Protector of the city" in resp.text
@@ -430,13 +430,13 @@ async def test_members_page(
 ) -> None:
     """Members page renders affiliated profiles or the empty state."""
     org = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+        db, user, page_name="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     if has_member:
         profile = await make_article(
             db,
             user,
-            slug="captain-america",
+            page_name="captain-america",
             article_type=ArticleType.profile,
             metadata_=PROFILE_META,
         )
@@ -448,7 +448,7 @@ async def test_members_page(
             db,
         )
         await db.commit()
-    resp = await client.get(f"/articles/{org.slug}/members")
+    resp = await client.get(f"/articles/{org.page_name}/members")
     assert resp.status_code == 200
     assert expected_text in resp.text
 
@@ -487,7 +487,7 @@ async def test_activity_page(
     location = await make_article(
         db,
         user,
-        slug="gotham",
+        page_name="gotham",
         article_type=ArticleType.location,
         metadata_=LOCATION_META,
     )
@@ -495,7 +495,7 @@ async def test_activity_page(
         event = await make_article(
             db,
             user,
-            slug="battle-of-gotham",
+            page_name="battle-of-gotham",
             article_type=ArticleType.event,
             metadata_=EVENT_META,
         )
@@ -510,7 +510,7 @@ async def test_activity_page(
         profile = await make_article(
             db,
             user,
-            slug="bruce-wayne",
+            page_name="bruce-wayne",
             article_type=ArticleType.profile,
             metadata_=PROFILE_META,
         )
@@ -522,7 +522,7 @@ async def test_activity_page(
             db,
         )
     await db.commit()
-    resp = await client.get(f"/articles/{location.slug}/activity")
+    resp = await client.get(f"/articles/{location.page_name}/activity")
     assert resp.status_code == 200
     for text in expected_texts:
         assert text in resp.text

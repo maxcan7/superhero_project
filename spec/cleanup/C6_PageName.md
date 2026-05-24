@@ -86,7 +86,7 @@ This cleanup collapses all of that:
   `noEmit: true` in tsconfig means `tsc` does not produce `.js` output; `editor.js` was manually kept in sync with the TypeScript changes (not compiled).
   `superhero_project/static/ts/editor.ts`
 
-- [ ] **6.** `refactor(tests): update fixtures and article tests for page_name`
+- [x] **6.** `refactor(tests): update fixtures and article tests for page_name`
   In `tests/conftest.py`:
   - Remove all `designation=` kwargs from `Article(...)` construction.
   - Rename `slug=` → `page_name=` in `Article(...)` construction.

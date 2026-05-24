@@ -189,8 +189,7 @@ async def mod_auth_client(
 async def draft_article(db: AsyncSession, user: User) -> Article:
     """A draft profile article."""
     article = Article(
-        slug="CAPE-0002",
-        designation="CAPE-0002",
+        page_name="draft-profile",
         article_type=ArticleType.profile,
         metadata_={
             "aliases": [],
@@ -214,8 +213,7 @@ async def draft_article(db: AsyncSession, user: User) -> Article:
 async def pending_article(db: AsyncSession, user: User) -> Article:
     """A pending profile article awaiting moderation."""
     article = Article(
-        slug="CAPE-0003",
-        designation="CAPE-0003",
+        page_name="pending-profile",
         article_type=ArticleType.profile,
         metadata_={
             "aliases": [],
@@ -239,8 +237,7 @@ async def pending_article(db: AsyncSession, user: User) -> Article:
 async def published_article(db: AsyncSession, user: User) -> Article:
     """A published profile article with minimal valid metadata and one tag."""
     article = Article(
-        slug="CAPE-0001",
-        designation="CAPE-0001",
+        page_name="the-guardian",
         article_type=ArticleType.profile,
         metadata_={
             "aliases": ["The Guardian"],
@@ -268,5 +265,6 @@ async def edited_article(
     auth_client: AsyncClient, published_article: Article
 ) -> Article:
     """Published article that has been edited once, creating one history entry."""
-    await auth_client.put(f"/articles/{published_article.slug}", json={"content": "v2"})
+    url = f"/articles/{published_article.page_name}"
+    await auth_client.put(url, json={"content": "v2"})
     return published_article

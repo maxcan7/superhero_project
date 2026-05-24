@@ -24,13 +24,13 @@ DISAMBIG_META: dict = DisambiguationMetadata().model_dump()
 
 # Representative outgoing-edge dicts (same shape as fetch_outgoing_links rows).
 WIKILINK_EDGE: dict[str, str | None] = {
-    "slug": "gotham",
+    "page_name": "gotham",
     "article_type": "location",
     "field_name": None,
     "resolved_via": "gotham",
 }
 GOTHAM_EDGE: dict[str, str | None] = {
-    "slug": "gotham",
+    "page_name": "gotham",
     "article_type": "location",
     "field_name": "base_of_operations",
     "resolved_via": "gotham",
@@ -48,18 +48,16 @@ async def make_article(
     db: AsyncSession,
     user: User,
     *,
-    slug: str,
+    page_name: str,
     article_type: ArticleType,
     metadata_: dict[str, Any],
     status: ArticleStatus = ArticleStatus.published,
-    designation: str | None = None,
     content: str = "",
 ) -> Article:
     """Persist and return a minimal article for use in tests."""
     a = Article(
-        slug=slug,
+        page_name=page_name,
         article_type=article_type,
-        designation=designation,
         metadata_=metadata_,
         content=content,
         author_id=user.id,

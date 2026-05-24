@@ -27,11 +27,11 @@ async def comment(db: AsyncSession, published_article: Article, user: User) -> C
 @pytest.mark.parametrize(
     ("method", "url_tmpl", "body"),
     [
-        pytest.param("post", "/comments/{slug}", {"body": "hi"}, id="create"),
+        pytest.param("post", "/comments/{page_name}", {"body": "hi"}, id="create"),
         pytest.param(
-            "put", "/comments/{slug}/{comment_id}", {"body": "x"}, id="update"
+            "put", "/comments/{page_name}/{comment_id}", {"body": "x"}, id="update"
         ),
-        pytest.param("delete", "/comments/{slug}/{comment_id}", None, id="delete"),
+        pytest.param("delete", "/comments/{page_name}/{comment_id}", None, id="delete"),
     ],
 )
 async def test_comment_requires_auth(
@@ -43,7 +43,7 @@ async def test_comment_requires_auth(
     body: dict | None,
 ) -> None:
     """POST, PUT, and DELETE return 401 without a session."""
-    url = url_tmpl.format(slug=published_article.slug, comment_id=comment.id)
+    url = url_tmpl.format(page_name=published_article.page_name, comment_id=comment.id)
     kwargs = {"json": body} if body is not None else {}
     assert (await getattr(client, method)(url, **kwargs)).status_code == 401
 
@@ -54,17 +54,17 @@ async def test_comment_requires_auth(
 @pytest.mark.parametrize(
     ("method", "url_tmpl", "body"),
     [
-        pytest.param("get", "/comments/{slug}", None, id="get"),
-        pytest.param("post", "/comments/{slug}", {"body": "hi"}, id="create"),
-        pytest.param("put", "/comments/{slug}/999", {"body": "x"}, id="update"),
-        pytest.param("delete", "/comments/{slug}/999", None, id="delete"),
+        pytest.param("get", "/comments/{page_name}", None, id="get"),
+        pytest.param("post", "/comments/{page_name}", {"body": "hi"}, id="create"),
+        pytest.param("put", "/comments/{page_name}/999", {"body": "x"}, id="update"),
+        pytest.param("delete", "/comments/{page_name}/999", None, id="delete"),
     ],
 )
 async def test_comment_article_not_found(
     auth_client: AsyncClient, method: str, url_tmpl: str, body: dict | None
 ) -> None:
     """All comment endpoints return 404 for a nonexistent article."""
-    url = url_tmpl.format(slug="nonexistent")
+    url = url_tmpl.format(page_name="nonexistent")
     kwargs = {"json": body} if body is not None else {}
     assert (await getattr(auth_client, method)(url, **kwargs)).status_code == 404
 
@@ -83,7 +83,7 @@ async def test_comment_not_found(
     kwargs = {"json": body} if body is not None else {}
     assert (
         await getattr(auth_client, method)(
-            f"/comments/{published_article.slug}/999", **kwargs
+            f"/comments/{published_article.page_name}/999", **kwargs
         )
     ).status_code == 404
 
@@ -109,7 +109,7 @@ async def test_comment_forbidden_for_non_author(
     kwargs = {"json": body} if body is not None else {}
     assert (
         await getattr(other_auth_client, method)(
-            f"/comments/{published_article.slug}/{comment.id}", **kwargs
+            f"/comments/{published_article.page_name}/{comment.id}", **kwargs
         )
     ).status_code == 403
 
@@ -121,14 +121,14 @@ async def test_list_comments_empty(
     client: AsyncClient, published_article: Article
 ) -> None:
     """Returns an empty list when no comments exist."""
-    assert (await client.get(f"/comments/{published_article.slug}")).json() == []
+    assert (await client.get(f"/comments/{published_article.page_name}")).json() == []
 
 
 async def test_list_comments(
     client: AsyncClient, published_article: Article, comment: Comment
 ) -> None:
     """Returns existing comments ordered by creation time."""
-    data = (await client.get(f"/comments/{published_article.slug}")).json()
+    data = (await client.get(f"/comments/{published_article.page_name}")).json()
     assert len(data) == 1
     assert data[0]["body"] == comment.body
 
@@ -141,7 +141,7 @@ async def test_create_comment(
 ) -> None:
     """Creates a comment and returns 201 with the stored body."""
     resp = await auth_client.post(
-        f"/comments/{published_article.slug}", json={"body": "Nice article!"}
+        f"/comments/{published_article.page_name}", json={"body": "Nice article!"}
     )
     assert resp.status_code == 201
     assert resp.json()["body"] == "Nice article!"
@@ -156,7 +156,8 @@ async def test_update_comment(
     """Author can update their comment body."""
     data = (
         await auth_client.put(
-            f"/comments/{published_article.slug}/{comment.id}", json={"body": "Updated"}
+            f"/comments/{published_article.page_name}/{comment.id}",
+            json={"body": "Updated"},
         )
     ).json()
     assert data["body"] == "Updated"
@@ -170,5 +171,7 @@ async def test_delete_comment(
 ) -> None:
     """Author can delete their comment; returns 204."""
     assert (
-        await auth_client.delete(f"/comments/{published_article.slug}/{comment.id}")
+        await auth_client.delete(
+            f"/comments/{published_article.page_name}/{comment.id}"
+        )
     ).status_code == 204

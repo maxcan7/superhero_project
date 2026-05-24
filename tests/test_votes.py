@@ -27,7 +27,7 @@ async def test_vote_requires_auth(
     """PUT and DELETE return 401 without a session."""
     kwargs = {"json": payload} if payload is not None else {}
     assert (
-        await getattr(client, method)(f"/votes/{published_article.slug}", **kwargs)
+        await getattr(client, method)(f"/votes/{published_article.page_name}", **kwargs)
     ).status_code == 401
 
 
@@ -57,7 +57,7 @@ async def test_vote_article_not_found(
 
 async def test_get_votes_empty(client: AsyncClient, published_article: Article) -> None:
     """Returns zero counts when no votes have been cast."""
-    assert (await client.get(f"/votes/{published_article.slug}")).json() == {
+    assert (await client.get(f"/votes/{published_article.page_name}")).json() == {
         "article_id": published_article.id,
         "upvotes": 0,
         "downvotes": 0,
@@ -76,7 +76,7 @@ async def test_get_votes_counts(
     db.add(Vote(article_id=published_article.id, user_id=user.id, value=1))
     db.add(Vote(article_id=published_article.id, user_id=other_user.id, value=-1))
     await db.commit()
-    assert (await client.get(f"/votes/{published_article.slug}")).json() == {
+    assert (await client.get(f"/votes/{published_article.page_name}")).json() == {
         "article_id": published_article.id,
         "upvotes": 1,
         "downvotes": 1,
@@ -91,9 +91,8 @@ async def test_cast_vote_invalid_value(
     auth_client: AsyncClient, published_article: Article
 ) -> None:
     """Values other than +1 or -1 return 422."""
-    assert (
-        await auth_client.put(f"/votes/{published_article.slug}", json={"value": 2})
-    ).status_code == 422
+    url = f"/votes/{published_article.page_name}"
+    assert (await auth_client.put(url, json={"value": 2})).status_code == 422
 
 
 @pytest.mark.parametrize(
@@ -107,9 +106,8 @@ async def test_cast_vote(
     auth_client: AsyncClient, published_article: Article, value: int, counter: str
 ) -> None:
     """Casting +1 increments upvotes; -1 increments downvotes."""
-    data = (
-        await auth_client.put(f"/votes/{published_article.slug}", json={"value": value})
-    ).json()
+    url = f"/votes/{published_article.page_name}"
+    data = (await auth_client.put(url, json={"value": value})).json()
     assert data[counter] == 1
 
 
@@ -117,10 +115,9 @@ async def test_update_vote_replaces_existing(
     auth_client: AsyncClient, published_article: Article
 ) -> None:
     """A second PUT updates the existing vote instead of inserting a duplicate."""
-    await auth_client.put(f"/votes/{published_article.slug}", json={"value": 1})
-    data = (
-        await auth_client.put(f"/votes/{published_article.slug}", json={"value": -1})
-    ).json()
+    url = f"/votes/{published_article.page_name}"
+    await auth_client.put(url, json={"value": 1})
+    data = (await auth_client.put(url, json={"value": -1})).json()
     assert data["upvotes"] == 0
 
 
@@ -131,9 +128,9 @@ async def test_remove_vote(
     auth_client: AsyncClient, published_article: Article
 ) -> None:
     """Removing an existing vote returns 204."""
-    await auth_client.put(f"/votes/{published_article.slug}", json={"value": 1})
+    await auth_client.put(f"/votes/{published_article.page_name}", json={"value": 1})
     assert (
-        await auth_client.delete(f"/votes/{published_article.slug}")
+        await auth_client.delete(f"/votes/{published_article.page_name}")
     ).status_code == 204
 
 
@@ -142,5 +139,5 @@ async def test_remove_vote_not_cast(
 ) -> None:
     """Returns 404 when the user has no vote to remove."""
     assert (
-        await auth_client.delete(f"/votes/{published_article.slug}")
+        await auth_client.delete(f"/votes/{published_article.page_name}")
     ).status_code == 404

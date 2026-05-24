@@ -50,7 +50,7 @@ async def test_queue_lists_pending(
 ) -> None:
     """Pending article appears in the queue."""
     [item] = (await mod_auth_client.get("/moderation/queue")).json()
-    assert item["slug"] == pending_article.slug
+    assert item["page_name"] == pending_article.page_name
 
 
 async def test_queue_excludes_non_pending(
@@ -70,7 +70,7 @@ async def test_queue_view_renders_pending(
 ) -> None:
     """Moderator queue view renders the pending article's slug."""
     assert (
-        pending_article.slug
+        pending_article.page_name
         in (await mod_auth_client.get("/moderation/queue/view")).text
     )
 
@@ -125,16 +125,16 @@ async def test_submit(submit_scenario: tuple[AsyncClient, Article, int]) -> None
     """Submit endpoint is author-only: enforces auth, ownership, and draft-only
     constraint."""
     ac, article, expected = submit_scenario
-    assert (await ac.post(f"/moderation/{article.slug}/submit")).status_code == expected
+    url = f"/moderation/{article.page_name}/submit"
+    assert (await ac.post(url)).status_code == expected
 
 
 async def test_submit_transitions_to_pending(
     auth_client: AsyncClient, draft_article: Article
 ) -> None:
     """Successful submit transitions the article status to pending."""
-    assert (await auth_client.post(f"/moderation/{draft_article.slug}/submit")).json()[
-        "status"
-    ] == "pending"
+    url = f"/moderation/{draft_article.page_name}/submit"
+    assert (await auth_client.post(url)).json()["status"] == "pending"
 
 
 @pytest.mark.parametrize(
@@ -152,7 +152,7 @@ async def test_force_submit(submit_scenario: tuple[AsyncClient, Article, int]) -
     constraint."""
     ac, article, expected = submit_scenario
     assert (
-        await ac.post(f"/moderation/{article.slug}/force-submit")
+        await ac.post(f"/moderation/{article.page_name}/force-submit")
     ).status_code == expected
 
 
@@ -174,7 +174,8 @@ async def test_moderator_action_transitions(
     expected_status: str,
 ) -> None:
     """Each moderator action transitions the article to the correct status."""
-    resp = await mod_auth_client.post(f"/moderation/{pending_article.slug}/{action}")
+    url = f"/moderation/{pending_article.page_name}/{action}"
+    resp = await mod_auth_client.post(url)
     assert resp.json()["status"] == expected_status
 
 
@@ -184,7 +185,7 @@ async def test_moderator_action_requires_moderator(
 ) -> None:
     """Contributors cannot perform any moderator action."""
     assert (
-        await auth_client.post(f"/moderation/{pending_article.slug}/{action}")
+        await auth_client.post(f"/moderation/{pending_article.page_name}/{action}")
     ).status_code == 403
 
 
@@ -194,7 +195,7 @@ async def test_moderator_action_wrong_status(
 ) -> None:
     """Moderator actions on a non-pending article return 409."""
     assert (
-        await mod_auth_client.post(f"/moderation/{draft_article.slug}/{action}")
+        await mod_auth_client.post(f"/moderation/{draft_article.page_name}/{action}")
     ).status_code == 409
 
 
@@ -224,12 +225,12 @@ async def test_approve_backfills_wikilink_edges(
     source = await make_article(
         db,
         user,
-        slug="source-org",
+        page_name="source-org",
         article_type=ArticleType.org,
         metadata_=ORG_META,
-        content=f"[[{pending_article.slug}]]",
+        content=f"[[{pending_article.page_name}]]",
     )
-    await mod_auth_client.post(f"/moderation/{pending_article.slug}/approve")
+    await mod_auth_client.post(f"/moderation/{pending_article.page_name}/approve")
     rows = await db.execute(
         text(
             "SELECT target_id FROM article_links"
@@ -265,7 +266,7 @@ async def test_create_disambiguation_access(
         "mod_auth_client": mod_auth_client,
     }
     ac = clients[client_name]
-    resp = await ac.post("/moderation/disambiguation", json={"slug": "mercury"})
+    resp = await ac.post("/moderation/disambiguation", json={"page_name": "mercury"})
     assert resp.status_code == expected
 
 
@@ -274,13 +275,13 @@ async def test_create_disambiguation_publishes_immediately(
 ) -> None:
     """Disambiguation articles are created as published, bypassing the queue."""
     resp = await mod_auth_client.post(
-        "/moderation/disambiguation", json={"slug": "mercury", "content": ""}
+        "/moderation/disambiguation", json={"page_name": "mercury", "content": ""}
     )
     assert resp.status_code == 201
     data = resp.json()
     assert data["status"] == "published"
     assert data["article_type"] == "disambiguation"
-    assert data["slug"] == "mercury"
+    assert data["page_name"] == "mercury"
 
 
 async def test_create_disambiguation_backfills_wikilinks(
@@ -292,13 +293,13 @@ async def test_create_disambiguation_backfills_wikilinks(
     source = await make_article(
         db,
         user,
-        slug="iron-man",
+        page_name="iron-man",
         article_type=ArticleType.org,
         metadata_=ORG_META,
         content="[[mercury]]",
     )
     resp = await mod_auth_client.post(
-        "/moderation/disambiguation", json={"slug": "mercury", "content": ""}
+        "/moderation/disambiguation", json={"page_name": "mercury", "content": ""}
     )
     disambig_id = resp.json()["id"]
     rows = await db.execute(

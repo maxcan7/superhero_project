@@ -52,7 +52,7 @@ async def test_tag_detail_shows_article(
     client: AsyncClient, published_article: Article
 ) -> None:
     """Tag detail page lists published articles carrying the tag."""
-    assert published_article.slug in (await client.get("/tags/hero")).text
+    assert published_article.page_name in (await client.get("/tags/hero")).text
 
 
 async def test_tag_detail_excludes_unpublished(
@@ -94,7 +94,7 @@ async def test_contributor_lists_published_articles(
 ) -> None:
     """Published articles appear on the contributor's profile."""
     assert (
-        published_article.slug
+        published_article.page_name
         in (await client.get(f"/contributors/{user.github_username}")).text
     )
 
@@ -130,9 +130,9 @@ async def test_my_articles_shows_all_statuses(
 ) -> None:
     """All of the user's articles appear regardless of status."""
     text = (await auth_client.get("/me/articles")).text
-    assert draft_article.slug in text
-    assert published_article.slug in text
-    assert pending_article.slug in text
+    assert draft_article.page_name in text
+    assert published_article.page_name in text
+    assert pending_article.page_name in text
 
 
 async def test_my_articles_excludes_other_users(
@@ -140,4 +140,4 @@ async def test_my_articles_excludes_other_users(
 ) -> None:
     """Articles authored by other users do not appear on this page."""
     text = (await other_auth_client.get("/me/articles")).text
-    assert draft_article.slug not in text
+    assert draft_article.page_name not in text

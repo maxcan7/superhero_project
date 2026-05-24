@@ -10,7 +10,7 @@ from tests.utils import GOTHAM_EDGE
 from tests.utils import WIKILINK_EDGE
 
 _AVENGERS_EDGE = {
-    "slug": "avengers",
+    "page_name": "avengers",
     "article_type": "org",
     "field_name": "affiliation",
     "resolved_via": "avengers",
@@ -33,7 +33,9 @@ _AVENGERS_EDGE = {
             {"affiliation": ["avengers"]},
             {
                 "affiliation": [
-                    ResolvedLink(resolved=True, slug="avengers", article_type="org")
+                    ResolvedLink(
+                        resolved=True, page_name="avengers", article_type="org"
+                    )
                 ]
             },
             id="resolved-list-field",
@@ -51,7 +53,9 @@ _AVENGERS_EDGE = {
             {"affiliation": ["avengers", "Unknown Org"]},
             {
                 "affiliation": [
-                    ResolvedLink(resolved=True, slug="avengers", article_type="org"),
+                    ResolvedLink(
+                        resolved=True, page_name="avengers", article_type="org"
+                    ),
                     UnresolvedLink(resolved=False, label="Unknown Org"),
                 ]
             },
@@ -63,7 +67,9 @@ _AVENGERS_EDGE = {
             {"base_of_operations": "gotham"},
             {
                 "base_of_operations": [
-                    ResolvedLink(resolved=True, slug="gotham", article_type="location")
+                    ResolvedLink(
+                        resolved=True, page_name="gotham", article_type="location"
+                    )
                 ]
             },
             id="resolved-single-field",

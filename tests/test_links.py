@@ -9,7 +9,7 @@ from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
 from superhero_project.db.models import User
 from superhero_project.domain.links import AliasIndex
-from superhero_project.domain.links import SlugMap
+from superhero_project.domain.links import PageNameMap
 from superhero_project.domain.links import _extract_metadata_edges
 from superhero_project.domain.links import _find_articles_referencing
 from superhero_project.domain.links import backfill_on_alias_change
@@ -39,42 +39,38 @@ pytestmark = pytest.mark.anyio
 
 
 @pytest.mark.parametrize(
-    ("slug", "article_type", "designation", "metadata_", "expected_keys"),
+    ("page_name", "article_type", "metadata_", "expected_keys"),
     [
         pytest.param(
             "S.H.I.E.L.D",
             ArticleType.org,
-            None,
             {**ORG_META, "aliases": ["Shield"]},
             ["s.h.i.e.l.d", "shield"],
-            id="org-slug-normalized-and-aliases",
+            id="org-page-name-normalized-and-aliases",
         ),
         pytest.param(
             "iron-man",
             ArticleType.profile,
-            "CAPE-0042",
             {**PROFILE_META, "aliases": ["Iron Man", "Tony Stark"]},
-            ["iron-man", "cape-0042", "iron man", "tony stark"],
-            id="profile-slug-designation-aliases",
+            ["iron-man", "iron man", "tony stark"],
+            id="profile-page-name-and-aliases",
         ),
     ],
 )
 async def test_aliases_indexed(
     db: AsyncSession,
     user: User,
-    slug: str,
+    page_name: str,
     article_type: ArticleType,
-    designation: str | None,
     metadata_: dict,
     expected_keys: list[str],
 ) -> None:
-    """Published article aliases (slug, designation, metadata) are all indexed."""
+    """Published article page_name and metadata aliases are all indexed."""
     a = await make_article(
         db,
         user,
-        slug=slug,
+        page_name=page_name,
         article_type=article_type,
-        designation=designation,
         metadata_=metadata_,
     )
     index = await build_alias_index(db)
@@ -90,7 +86,7 @@ async def test_unpublished_excluded(
     await make_article(
         db,
         user,
-        slug="secret",
+        page_name="secret",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
         status=status,
@@ -101,7 +97,11 @@ async def test_unpublished_excluded(
 async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> None:
     """Disambiguation slugs are indexed and resolve to the disambiguation article."""
     a = await make_article(
-        db, user, slug="mercury", article_type=ArticleType.disambiguation, metadata_={}
+        db,
+        user,
+        page_name="mercury",
+        article_type=ArticleType.disambiguation,
+        metadata_={},
     )
     assert await build_alias_index(db) == {"mercury": a.id}
 
@@ -110,7 +110,7 @@ async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> Non
 
 
 @pytest.mark.parametrize(
-    ("content", "index", "slug_map", "expected"),
+    ("content", "index", "page_name_map", "expected"),
     [
         pytest.param(
             "See [[Iron Man]].",
@@ -152,10 +152,10 @@ async def test_disambiguation_slug_in_index(db: AsyncSession, user: User) -> Non
     ],
 )
 def test_render_wikilinks(
-    content: str, index: AliasIndex, slug_map: SlugMap, expected: str
+    content: str, index: AliasIndex, page_name_map: PageNameMap, expected: str
 ) -> None:
     """Wikilinks render as HTML anchors; unresolved targets become red-links."""
-    assert render_wikilinks(content, index, slug_map) == expected
+    assert render_wikilinks(content, index, page_name_map) == expected
 
 
 # --- sync_wikilink_edges (integration tests with DB) ---
@@ -192,12 +192,12 @@ async def test_sync_wikilink_edges(
 ) -> None:
     """Wikilink edges are created, deduplicated, and dropped for unresolved targets."""
     target = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+        db, user, page_name="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     source = await make_article(
         db,
         user,
-        slug="source",
+        page_name="source",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
     )
@@ -212,12 +212,12 @@ async def test_sync_wikilink_edges_replaces_on_resave(
 ) -> None:
     """Re-syncing clears old wikilink edges before writing fresh ones."""
     target = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+        db, user, page_name="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     source = await make_article(
         db,
         user,
-        slug="spider-man",
+        page_name="spider-man",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
     )
@@ -360,14 +360,14 @@ async def metadata_edge_pair(db: AsyncSession, user: User) -> tuple:
     target = await make_article(
         db,
         user,
-        slug="gotham",
+        page_name="gotham",
         article_type=ArticleType.location,
         metadata_=LOCATION_META,
     )
     source = await make_article(
         db,
         user,
-        slug="batman",
+        page_name="batman",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
     )
@@ -443,14 +443,14 @@ async def test_fetch_outgoing_links(
     target = await make_article(
         db,
         user,
-        slug="gotham",
+        page_name="gotham",
         article_type=ArticleType.location,
         metadata_=LOCATION_META,
     )
     source = await make_article(
         db,
         user,
-        slug="batman",
+        page_name="batman",
         article_type=ArticleType.profile,
         metadata_={**PROFILE_META, **meta_override},
         content=content,
@@ -469,14 +469,14 @@ async def test_fetch_incoming_links(db: AsyncSession, user: User) -> None:
     target = await make_article(
         db,
         user,
-        slug="gotham",
+        page_name="gotham",
         article_type=ArticleType.location,
         metadata_=LOCATION_META,
     )
     source = await make_article(
         db,
         user,
-        slug="batman",
+        page_name="batman",
         article_type=ArticleType.profile,
         metadata_={**PROFILE_META, "base_of_operations": "gotham"},
     )
@@ -492,9 +492,9 @@ async def test_fetch_incoming_links(db: AsyncSession, user: User) -> None:
     await db.commit()
     rows = await fetch_incoming_links(target.id, db)
     assert rows == [
-        {"slug": "batman", "article_type": "profile", "field_name": None},
+        {"page_name": "batman", "article_type": "profile", "field_name": None},
         {
-            "slug": "batman",
+            "page_name": "batman",
             "article_type": "profile",
             "field_name": "base_of_operations",
         },
@@ -532,7 +532,7 @@ async def test_fetch_links_excludes_unpublished(
     target = await make_article(
         db,
         user,
-        slug="gotham",
+        page_name="gotham",
         article_type=ArticleType.location,
         metadata_=LOCATION_META,
         status=target_status,
@@ -540,7 +540,7 @@ async def test_fetch_links_excludes_unpublished(
     source = await make_article(
         db,
         user,
-        slug="batman",
+        page_name="batman",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
         status=source_status,
@@ -573,7 +573,7 @@ async def test_backfill_on_publish(
     target = await make_article(
         db,
         user,
-        slug="avengers",
+        page_name="avengers",
         article_type=ArticleType.org,
         metadata_=ORG_META,
         content=target_content,
@@ -581,7 +581,7 @@ async def test_backfill_on_publish(
     source = await make_article(
         db,
         user,
-        slug="iron-man",
+        page_name="iron-man",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
         content=source_content,
@@ -616,14 +616,14 @@ async def test_backfill_on_alias_change(
     target = await make_article(
         db,
         user,
-        slug="tony-stark",
+        page_name="tony-stark",
         article_type=ArticleType.profile,
         metadata_=new_meta,
     )
     source = await make_article(
         db,
         user,
-        slug="source",
+        page_name="source",
         article_type=ArticleType.org,
         metadata_=ORG_META,
         content="[[Iron Man]]",
@@ -645,14 +645,14 @@ async def test_backfill_on_publish_via_alias(db: AsyncSession, user: User) -> No
     target = await make_article(
         db,
         user,
-        slug="tony-stark",
+        page_name="tony-stark",
         article_type=ArticleType.profile,
         metadata_={**PROFILE_META, "aliases": ["iron man"]},
     )
     source = await make_article(
         db,
         user,
-        slug="source",
+        page_name="source",
         article_type=ArticleType.org,
         metadata_=ORG_META,
         content="[[Iron Man]]",
@@ -685,20 +685,19 @@ async def test_backfill_on_alias_change_noop_for_type_without_aliases(
 async def org_members_setup(db: AsyncSession, user: User) -> Article:
     """Org with two affiliated published profiles: active cap, retired war-machine."""
     org = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+        db, user, page_name="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     active = await make_article(
         db,
         user,
-        slug="captain-america",
+        page_name="captain-america",
         article_type=ArticleType.profile,
-        designation="CAPE-0001",
         metadata_={**PROFILE_META, "status": "active", "aliases": ["Cap"]},
     )
     retired = await make_article(
         db,
         user,
-        slug="war-machine",
+        page_name="war-machine",
         article_type=ArticleType.profile,
         metadata_={**PROFILE_META, "status": "retired"},
     )
@@ -721,8 +720,7 @@ async def org_members_setup(db: AsyncSession, user: User) -> Article:
         pytest.param(
             0,
             {
-                "slug": "captain-america",
-                "designation": "CAPE-0001",
+                "page_name": "captain-america",
                 "status": "active",
                 "aliases": ["Cap"],
             },
@@ -731,8 +729,7 @@ async def org_members_setup(db: AsyncSession, user: User) -> Article:
         pytest.param(
             1,
             {
-                "slug": "war-machine",
-                "designation": None,
+                "page_name": "war-machine",
                 "status": "retired",
                 "aliases": [],
             },
@@ -754,12 +751,12 @@ async def test_fetch_org_members_excludes_unpublished(
 ) -> None:
     """Affiliated profiles that are not published are excluded from the roster."""
     org = await make_article(
-        db, user, slug="avengers", article_type=ArticleType.org, metadata_=ORG_META
+        db, user, page_name="avengers", article_type=ArticleType.org, metadata_=ORG_META
     )
     profile = await make_article(
         db,
         user,
-        slug="ghost",
+        page_name="ghost",
         article_type=ArticleType.profile,
         metadata_=PROFILE_META,
         status=status,

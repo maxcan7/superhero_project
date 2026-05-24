@@ -49,10 +49,10 @@ async def test_get_article_json(
     client: AsyncClient, published_article: Article
 ) -> None:
     """GET /articles/{id} returns the article as JSON with a rendered body."""
-    resp = await client.get(f"/articles/{published_article.slug}")
+    resp = await client.get(f"/articles/{published_article.page_name}")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["slug"] == published_article.slug
+    assert data["page_name"] == published_article.page_name
     assert "<h1>" in data["rendered_body"]
 
 
@@ -63,17 +63,25 @@ async def test_get_article_json(
     ("body", "expected_status"),
     [
         pytest.param(
-            {"article_type": "lore", "slug": "origin-of-powers", "tags": ["history"]},
+            {
+                "article_type": "lore",
+                "page_name": "origin-of-powers",
+                "tags": ["history"],
+            },
             201,
             id="valid-lore",
         ),
         pytest.param(
-            {"article_type": "profile", "metadata": {"not_a_field": True}},
+            {
+                "article_type": "profile",
+                "page_name": "bad-meta",
+                "metadata": {"not_a_field": True},
+            },
             422,
             id="invalid-metadata",
         ),
         pytest.param(
-            {"article_type": "disambiguation", "slug": "mercury"},
+            {"article_type": "disambiguation", "page_name": "mercury"},
             403,
             id="disambiguation-rejected",
         ),
@@ -95,16 +103,17 @@ async def test_create_article_status(
         pytest.param(["hero", "speedster"], {"hero", "speedster"}, id="with-tags"),
     ],
 )
-async def test_create_profile_auto_assigns_designation(
+async def test_create_profile_with_explicit_page_name(
     auth_client: AsyncClient,
     tags: list[str],
     expected_tags: set[str],
 ) -> None:
-    """POST /articles/ with profile type auto-assigns a CAPE designation as slug."""
+    """POST /articles/ with profile type uses the provided page_name."""
     resp = await auth_client.post(
         "/articles/",
         json={
             "article_type": "profile",
+            "page_name": "new-hero",
             "metadata": {
                 "aliases": [],
                 "affiliation": [],
@@ -118,8 +127,7 @@ async def test_create_profile_auto_assigns_designation(
     )
     assert resp.status_code == 201
     data = resp.json()
-    assert data["designation"].startswith("CAPE-")
-    assert data["slug"] == data["designation"]
+    assert data["page_name"] == "new-hero"
     assert set(data["tags"]) == expected_tags
 
 
@@ -154,7 +162,7 @@ async def test_update_article(
 ) -> None:
     """PUT /articles/{id} updates content, tags, or metadata and returns the new
     state."""
-    resp = await auth_client.put(f"/articles/{published_article.slug}", json=body)
+    resp = await auth_client.put(f"/articles/{published_article.page_name}", json=body)
     assert resp.status_code == 200
     assert resp.json()[field] == expected
 
@@ -166,7 +174,7 @@ async def test_delete_article(
     auth_client: AsyncClient, published_article: Article
 ) -> None:
     """DELETE /articles/{id} by the author returns 204."""
-    resp = await auth_client.delete(f"/articles/{published_article.slug}")
+    resp = await auth_client.delete(f"/articles/{published_article.page_name}")
     assert resp.status_code == 204
 
 
@@ -177,10 +185,15 @@ async def test_delete_article(
     ("method", "url_tmpl", "body"),
     [
         pytest.param(
-            "post", "/articles/", {"article_type": "lore", "slug": "test"}, id="create"
+            "post",
+            "/articles/",
+            {"article_type": "lore", "page_name": "test"},
+            id="create",
         ),
-        pytest.param("put", "/articles/{slug}", {"content": "## Nope"}, id="update"),
-        pytest.param("delete", "/articles/{slug}", None, id="delete"),
+        pytest.param(
+            "put", "/articles/{page_name}", {"content": "## Nope"}, id="update"
+        ),
+        pytest.param("delete", "/articles/{page_name}", None, id="delete"),
     ],
 )
 async def test_protected_route_requires_session(
@@ -191,7 +204,7 @@ async def test_protected_route_requires_session(
     body: dict | None,
 ) -> None:
     """Unauthenticated requests to write endpoints return 401."""
-    url = url_tmpl.format(slug=published_article.slug)
+    url = url_tmpl.format(page_name=published_article.page_name)
     kwargs = {"json": body} if body is not None else {}
     resp = await getattr(client, method)(url, **kwargs)
     assert resp.status_code == 401
@@ -213,7 +226,7 @@ async def test_write_route_forbidden_for_non_author(
     """Write requests on an article owned by another user return 403."""
     kwargs = {"json": body} if body is not None else {}
     resp = await getattr(other_auth_client, method)(
-        f"/articles/{published_article.slug}", **kwargs
+        f"/articles/{published_article.page_name}", **kwargs
     )
     assert resp.status_code == 403
 
@@ -231,7 +244,7 @@ async def test_index_empty(client: AsyncClient) -> None:
 @pytest.mark.parametrize(
     ("use_auth", "expected_text"),
     [
-        pytest.param(False, "CAPE-0001", id="anonymous"),
+        pytest.param(False, "the-guardian", id="anonymous"),
         pytest.param(True, "Test User", id="logged-in"),
     ],
 )
@@ -260,7 +273,7 @@ async def test_history_not_found(client: AsyncClient) -> None:
 async def test_history_empty(client: AsyncClient, published_article: Article) -> None:
     """Returns an empty list before any edits have been made."""
     assert (
-        await client.get(f"/articles/{published_article.slug}/history")
+        await client.get(f"/articles/{published_article.page_name}/history")
     ).json() == []
 
 
@@ -269,18 +282,17 @@ async def test_history_records_edits(
 ) -> None:
     """A second edit produces a second history entry (covers inter-snapshot diff
     path)."""
-    await auth_client.put(f"/articles/{edited_article.slug}", json={"content": "v3"})
-    assert (
-        len((await auth_client.get(f"/articles/{edited_article.slug}/history")).json())
-        == 2
-    )
+    url = f"/articles/{edited_article.page_name}"
+    await auth_client.put(url, json={"content": "v3"})
+    assert len((await auth_client.get(f"{url}/history")).json()) == 2
 
 
 async def test_history_diff_shows_change(
     auth_client: AsyncClient, edited_article: Article
 ) -> None:
     """The content diff contains the text introduced by the edit."""
-    history = (await auth_client.get(f"/articles/{edited_article.slug}/history")).json()
+    url = f"/articles/{edited_article.page_name}/history"
+    history = (await auth_client.get(url)).json()
     assert "v2" in history[0]["content_diff"]
 
 
@@ -297,7 +309,7 @@ async def test_update_removed_alias_deletes_edges(
     source = await make_article(
         db,
         user,
-        slug="source-org",
+        page_name="source-org",
         article_type=ArticleType.org,
         metadata_=ORG_META,
         content="[[The Guardian]]",
@@ -315,7 +327,7 @@ async def test_update_removed_alias_deletes_edges(
         "first_appearance": None,
     }
     await auth_client.put(
-        f"/articles/{published_article.slug}", json={"metadata": new_meta}
+        f"/articles/{published_article.page_name}", json={"metadata": new_meta}
     )
     rows = list(
         (
