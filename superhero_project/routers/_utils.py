@@ -1,6 +1,5 @@
 """Shared helpers for article-based routers."""
 
-import re
 from collections.abc import Mapping
 from collections.abc import Sequence
 from datetime import datetime
@@ -15,12 +14,9 @@ from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
 
-_CAPE_RE = re.compile(r"^CAPE-\d{4,}$")
-
 
 class ArticleListItem(TypedDict):
-    slug: str
-    designation: str | None
+    page_name: str
     article_type: ArticleType
     status: ArticleStatus
     metadata: Mapping[str, object]
@@ -30,8 +26,7 @@ class ArticleListItem(TypedDict):
 
 def article_list_item(article: Article) -> ArticleListItem:
     return {
-        "slug": article.slug,
-        "designation": article.designation,
+        "page_name": article.page_name,
         "article_type": article.article_type,
         "status": article.status,
         "metadata": article.metadata_,
@@ -45,9 +40,8 @@ async def fetch_article(
     db: AsyncSession,
     options: Sequence[LoaderOption] = (),
 ) -> Article:
-    """Look up an article by CAPE designation or slug; raise 404 if absent."""
-    col = Article.designation if _CAPE_RE.match(identifier) else Article.slug
-    stmt = select(Article).where(col == identifier)
+    """Look up an article by page_name; raise 404 if absent."""
+    stmt = select(Article).where(Article.page_name == identifier)
     if options:
         stmt = stmt.options(*options)
     article = (await db.execute(stmt)).scalar_one_or_none()

@@ -39,7 +39,7 @@ This cleanup collapses all of that:
   - Rename `slug` → `page_name` in `ResolvedLink` TypedDict and `_field_edge_map`.
   `superhero_project/domain/links.py superhero_project/domain/infobox.py`
 
-- [ ] **3.** `refactor(routers): rename slug→page_name, remove designation, remove profile special-case`
+- [x] **3.** `refactor(routers): rename slug→page_name, remove designation, remove profile special-case`
   In `routers/_utils.py`:
   - Remove `_CAPE_RE` and the designation-vs-slug branching in `fetch_article`; always look up by `Article.page_name`.
   - Rename `slug` → `page_name` in `ArticleListItem` and `article_list_item`.

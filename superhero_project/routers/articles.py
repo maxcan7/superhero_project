@@ -1,7 +1,6 @@
-"""Articles router: CRUD, designation/slug routing, and Markdown rendering."""
+"""Articles router: CRUD, page_name routing, and Markdown rendering."""
 
 import difflib
-import uuid
 from datetime import datetime
 from typing import Any
 
@@ -31,7 +30,7 @@ from superhero_project.domain.comic import ComicMetadata
 from superhero_project.domain.disambiguation import DisambiguationMetadata
 from superhero_project.domain.event import EventMetadata
 from superhero_project.domain.links import AliasIndex
-from superhero_project.domain.links import SlugMap
+from superhero_project.domain.links import PageNameMap
 from superhero_project.domain.links import backfill_on_alias_change
 from superhero_project.domain.links import build_link_maps
 from superhero_project.domain.links import render_wikilinks
@@ -64,7 +63,7 @@ class ArticleCreate(BaseModel):
     """Request body for article creation."""
 
     article_type: ArticleType
-    slug: str = ""
+    page_name: str
     metadata: dict[str, Any] = {}
     content: str = ""
     tags: list[str] = []
@@ -85,9 +84,8 @@ class ArticleOut(BaseModel):
     """
 
     id: int
-    slug: str
+    page_name: str
     article_type: ArticleType
-    designation: str | None
     schema_version: int
     metadata: dict[str, Any]
     content: str
@@ -100,9 +98,9 @@ class ArticleOut(BaseModel):
     tags: list[str]
 
 
-def _render(text: str, index: AliasIndex, slug_map: SlugMap) -> str:
+def _render(text: str, index: AliasIndex, page_name_map: PageNameMap) -> str:
     """Render a Markdown string to HTML, with wikilinks resolved to HTML anchors."""
-    return str(_md.render(render_wikilinks(text, index, slug_map)))
+    return str(_md.render(render_wikilinks(text, index, page_name_map)))
 
 
 def _validate_metadata(
@@ -123,17 +121,18 @@ def _can_edit(user: User, article: Article) -> bool:
     )
 
 
-def _to_out(article: Article, index: AliasIndex, slug_map: SlugMap) -> ArticleOut:
+def _to_out(
+    article: Article, index: AliasIndex, page_name_map: PageNameMap
+) -> ArticleOut:
     """Map an ORM Article (tags eagerly loaded) to ArticleOut; renders wikilinks."""
     return ArticleOut(
         id=article.id,
-        slug=article.slug,
+        page_name=article.page_name,
         article_type=article.article_type,
-        designation=article.designation,
         schema_version=article.schema_version,
         metadata=article.metadata_,
         content=article.content,
-        rendered_body=_render(article.content, index, slug_map),
+        rendered_body=_render(article.content, index, page_name_map),
         author_id=article.author_id,
         status=article.status,
         created_at=article.created_at,
@@ -203,16 +202,16 @@ async def _sync_edges(
     content: str,
     metadata: dict[str, Any],
     db: AsyncSession,
-) -> tuple[AliasIndex, SlugMap]:
+) -> tuple[AliasIndex, PageNameMap]:
     """Build link maps and sync wikilink + metadata edges for one article."""
-    index, slug_map = await build_link_maps(db)
+    index, page_name_map = await build_link_maps(db)
     await sync_wikilink_edges(article_id, content, index, db)
     await sync_metadata_edges(article_id, article_type, metadata, index, db)
-    return index, slug_map
+    return index, page_name_map
 
 
 async def _build_response(
-    article_id: int, index: AliasIndex, slug_map: SlugMap, db: AsyncSession
+    article_id: int, index: AliasIndex, page_name_map: PageNameMap, db: AsyncSession
 ) -> ArticleOut:
     """Re-fetch an article with tags loaded and render it to ArticleOut."""
     result = await db.execute(
@@ -220,7 +219,7 @@ async def _build_response(
         .where(Article.id == article_id)
         .options(selectinload(Article.tags))
     )
-    return _to_out(result.scalar_one(), index, slug_map)
+    return _to_out(result.scalar_one(), index, page_name_map)
 
 
 class RenderRequest(BaseModel):
@@ -232,37 +231,8 @@ class RenderRequest(BaseModel):
 @router.post("/render", response_class=HTMLResponse)
 async def render_markdown(body: RenderRequest, db: DB) -> Response:
     """Render a Markdown string to HTML — used by the live editor preview."""
-    index, slug_map = await build_link_maps(db)
-    return HTMLResponse(_render(body.content, index, slug_map))
-
-
-async def _create_profile(
-    body: ArticleCreate, user: User, db: AsyncSession
-) -> ArticleOut:
-    """Insert a profile with a temp UUID slug, then fix slug/designation from the DB
-    id."""
-    validated_meta = _validate_metadata(body.article_type, body.metadata)
-    article = Article(
-        slug=f"_tmp_{uuid.uuid4().hex}",
-        article_type=body.article_type,
-        metadata_=validated_meta,
-        content=body.content,
-        author_id=user.id,
-        status=ArticleStatus.draft,
-    )
-    db.add(article)
-    await db.flush()
-    designation = f"CAPE-{article.id:04d}"
-    article.designation = designation
-    article.slug = designation
-    for tag in body.tags:
-        db.add(ArticleTag(article_id=article.id, tag=tag))
-    await db.commit()
-    index, slug_map = await _sync_edges(
-        article.id, article.article_type, article.content, article.metadata_, db
-    )
-    await db.commit()
-    return await _build_response(article.id, index, slug_map, db)
+    index, page_name_map = await build_link_maps(db)
+    return HTMLResponse(_render(body.content, index, page_name_map))
 
 
 @router.post("/", status_code=201)
@@ -276,11 +246,9 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
                 "Use POST /moderation/disambiguation to create disambiguation articles"
             ),
         )
-    if body.article_type == ArticleType.profile:
-        return await _create_profile(body, user, db)
     validated_meta = _validate_metadata(body.article_type, body.metadata)
     article = Article(
-        slug=body.slug,
+        page_name=body.page_name,
         article_type=body.article_type,
         metadata_=validated_meta,
         content=body.content,
@@ -292,19 +260,19 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
     for tag in body.tags:
         db.add(ArticleTag(article_id=article.id, tag=tag))
     await db.commit()
-    index, slug_map = await _sync_edges(
+    index, page_name_map = await _sync_edges(
         article.id, article.article_type, article.content, article.metadata_, db
     )
     await db.commit()
-    return await _build_response(article.id, index, slug_map, db)
+    return await _build_response(article.id, index, page_name_map, db)
 
 
 @router.get("/{identifier}")
 async def get_article(identifier: str, db: DB) -> ArticleOut:
-    """Fetch a single article by designation or slug."""
+    """Fetch a single article by page_name."""
     article = await fetch_article(identifier, db, [selectinload(Article.tags)])
-    index, slug_map = await build_link_maps(db)
-    return _to_out(article, index, slug_map)
+    index, page_name_map = await build_link_maps(db)
+    return _to_out(article, index, page_name_map)
 
 
 @router.put("/{identifier}")
@@ -339,7 +307,7 @@ async def update_article(
         db.add_all([ArticleTag(article_id=article.id, tag=tag) for tag in body.tags])
 
     await db.commit()
-    index, slug_map = await _sync_edges(
+    index, page_name_map = await _sync_edges(
         article.id, article.article_type, article.content, article.metadata_, db
     )
     if body.metadata is not None and article.status == ArticleStatus.published:
@@ -347,7 +315,7 @@ async def update_article(
             article.id, old_metadata, article.metadata_, article.article_type, db
         )
     await db.commit()
-    return await _build_response(article.id, index, slug_map, db)
+    return await _build_response(article.id, index, page_name_map, db)
 
 
 @router.get("/{identifier}/history")

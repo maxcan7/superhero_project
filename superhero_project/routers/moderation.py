@@ -34,9 +34,8 @@ class QueueItemOut(BaseModel):
     """Article shape returned by queue listing and status-transition endpoints."""
 
     id: int
-    slug: str
+    page_name: str
     article_type: ArticleType
-    designation: str | None
     metadata: dict[str, Any]
     author_id: int
     author_name: str
@@ -66,9 +65,8 @@ def _to_out(article: Article) -> QueueItemOut:
     """Map an ORM Article (tags and author eagerly loaded) to QueueItemOut."""
     return QueueItemOut(
         id=article.id,
-        slug=article.slug,
+        page_name=article.page_name,
         article_type=article.article_type,
-        designation=article.designation,
         metadata=article.metadata_,
         author_id=article.author_id,
         author_name=article.author.display_name,
@@ -198,7 +196,7 @@ async def request_changes(request: Request, identifier: str, db: DB) -> QueueIte
 class DisambiguationCreate(BaseModel):
     """Request body for creating a disambiguation article."""
 
-    slug: str
+    page_name: str
     content: str = ""
 
 
@@ -213,7 +211,7 @@ async def create_disambiguation_article(
     user = await get_current_user(request, db)
     _require_moderator(user)
     article = Article(
-        slug=body.slug,
+        page_name=body.page_name,
         article_type=ArticleType.disambiguation,
         metadata_={},
         content=body.content,

@@ -205,7 +205,7 @@ def _build_search_stmt(
         if (cond := _type_condition(type_filter)) is not None:
             conditions.append(cond)
 
-    order_by: ColumnElement[Any] = Article.slug.asc()
+    order_by: ColumnElement[Any] = Article.page_name.asc()
     if q is not None:
         fts_cond, order_by = _fts_condition(q)
         safe_q = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -253,9 +253,9 @@ async def search_articles(
         )
 
     stmt = _build_search_stmt(q, type_filter, status, powers, location_type, org_type)
-    index, slug_map = await build_link_maps(db)
+    index, page_name_map = await build_link_maps(db)
     articles = (await db.execute(stmt)).scalars().all()
-    results = [_to_out(a, index, slug_map) for a in articles]
+    results = [_to_out(a, index, page_name_map) for a in articles]
     return _templates.TemplateResponse(
         request=request,
         name="search.html",
@@ -268,8 +268,8 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
     """Render an article as an HTML page."""
     user = await get_current_user_opt(request, db)
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
-    index, slug_map = await build_link_maps(db)
-    article = _to_out(article_db, index, slug_map)
+    index, page_name_map = await build_link_maps(db)
+    article = _to_out(article_db, index, page_name_map)
     vote_upvotes, vote_downvotes, vote_score, user_vote = await _load_vote_context(
         article_db.id, user, db
     )
@@ -307,8 +307,8 @@ async def view_org_members(request: Request, identifier: str, db: DB) -> Respons
         (status, list(entries))
         for status, entries in _groupby(members, key=lambda m: m["status"])
     ]
-    index, slug_map = await build_link_maps(db)
-    article = _to_out(article_db, index, slug_map)
+    index, page_name_map = await build_link_maps(db)
+    article = _to_out(article_db, index, page_name_map)
     return _templates.TemplateResponse(
         request=request,
         name="members.html",
@@ -322,8 +322,8 @@ async def view_location_activity(request: Request, identifier: str, db: DB) -> R
     user = await get_current_user_opt(request, db)
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
     events, residents = await fetch_location_activity(article_db.id, db)
-    index, slug_map = await build_link_maps(db)
-    article = _to_out(article_db, index, slug_map)
+    index, page_name_map = await build_link_maps(db)
+    article = _to_out(article_db, index, page_name_map)
     return _templates.TemplateResponse(
         request=request,
         name="activity.html",
@@ -341,12 +341,12 @@ async def view_article_history(request: Request, identifier: str, db: DB) -> Res
     """Render the edit history page with unified diffs for each revision."""
     user = await get_current_user_opt(request, db)
     article = await fetch_article(identifier, db, [selectinload(Article.tags)])
-    index, slug_map = await build_link_maps(db)
+    index, page_name_map = await build_link_maps(db)
     return _templates.TemplateResponse(
         request=request,
         name="history.html",
         context={
-            "article": _to_out(article, index, slug_map),
+            "article": _to_out(article, index, page_name_map),
             "history": _compute_diffs(
                 await _load_history(article, db), article.content
             ),
@@ -362,15 +362,15 @@ async def edit_article_form(request: Request, identifier: str, db: DB) -> Respon
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
     if not _can_edit(user, article_db):
         raise HTTPException(status_code=403, detail="Forbidden")
-    index, slug_map = await build_link_maps(db)
-    article = _to_out(article_db, index, slug_map)
+    index, page_name_map = await build_link_maps(db)
+    article = _to_out(article_db, index, page_name_map)
     return _templates.TemplateResponse(
         request=request,
         name="editor.html",
         context={
             "user": user,
             "article": article,
-            "identifier": article.designation or article.slug,
+            "identifier": article.page_name,
             "article_types": _CREATABLE_ARTICLE_TYPES,
             "article_type_label": article_db.article_type.label,
         },
