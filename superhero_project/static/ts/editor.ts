@@ -3,7 +3,7 @@
   if (!form) return;
 
   const typeEl = document.getElementById('article-type') as HTMLInputElement | HTMLSelectElement | null;
-  const slugGroup = document.getElementById('slug-group') as HTMLElement | null;
+  const pageNameGroup = document.getElementById('page-name-group') as HTMLElement | null;
   const metaFieldsets = document.querySelectorAll<HTMLElement>('.meta-fieldset');
   const errorEl = document.getElementById('editor-error') as HTMLElement | null;
 
@@ -11,8 +11,8 @@
     metaFieldsets.forEach((fs) => {
       fs.hidden = fs.id !== `meta-${type}`;
     });
-    if (slugGroup) {
-      slugGroup.hidden = type === 'profile';
+    if (pageNameGroup) {
+      pageNameGroup.hidden = !type;
     }
   }
 
@@ -67,10 +67,10 @@
     if (mode === 'create') {
       url = '/articles/';
       method = 'POST';
-      const slugEl = document.getElementById('article-slug') as HTMLInputElement | null;
+      const pageNameEl = document.getElementById('article-page-name') as HTMLInputElement | null;
       bodyObj = {
         article_type: type,
-        slug: slugEl?.value.trim() ?? '',
+        page_name: pageNameEl?.value.trim() ?? '',
         metadata,
         content,
         tags,
@@ -95,7 +95,7 @@
       return;
     }
 
-    const data = (await resp.json()) as { designation?: string; slug: string };
-    window.location.href = `/articles/${data.designation ?? data.slug}/view`;
+    const data = (await resp.json()) as { page_name: string };
+    window.location.href = `/articles/${data.page_name}/view`;
   });
 })();

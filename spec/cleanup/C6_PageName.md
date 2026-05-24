@@ -76,7 +76,7 @@ This cleanup collapses all of that:
   router context) were also updated directly to `article.page_name`.
   `superhero_project/templates/editor.html superhero_project/templates/`
 
-- [ ] **5.** `refactor(ts): show page-name field for all article types`
+- [x] **5.** `refactor(ts): show page-name field for all article types`
   In `static/ts/editor.ts`:
   - Remove `slugGroup.hidden = type === 'profile'` — the field is shown whenever any
     type is selected.
@@ -84,7 +84,7 @@ This cleanup collapses all of that:
     `article-slug` → `article-page-name`.
   - Rename the field key sent in the POST body from `slug` to `page_name`.
   `noEmit: true` in tsconfig means `tsc` does not produce `.js` output; `editor.js` was manually kept in sync with the TypeScript changes (not compiled).
-  `superhero_project/static/ts/editor.ts superhero_project/static/js/editor.js`
+  `superhero_project/static/ts/editor.ts`
 
 - [ ] **6.** `refactor(tests): update fixtures and article tests for page_name`
   In `tests/conftest.py`:
