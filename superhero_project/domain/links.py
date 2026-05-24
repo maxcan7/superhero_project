@@ -15,7 +15,7 @@ from superhero_project.db.models import ArticleType
 from superhero_project.domain._utils import normalize_str
 
 AliasIndex = dict[str, int]  # normalized text → article_id
-SlugMap = dict[int, str]  # article_id → slug
+PageNameMap = dict[int, str]  # article_id → page_name
 
 _WIKILINK_RE = re.compile(r"\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]")
 
@@ -26,8 +26,6 @@ class TypeHandler:
 
     # Metadata keys whose list values are additional aliases for the index
     alias_fields: list[str] = field(default_factory=list)
-    # True if article.designation should also be indexed
-    index_designation: bool = False
     # (field_name, metadata_key, is_list) — drives metadata edge extraction
     edge_fields: list[tuple[str, str, bool]] = field(default_factory=list)
 
@@ -35,7 +33,6 @@ class TypeHandler:
 _HANDLERS: dict[ArticleType, TypeHandler] = {
     ArticleType.profile: TypeHandler(
         alias_fields=["aliases"],
-        index_designation=True,
         edge_fields=[
             ("affiliation", "affiliation", True),
             ("base_of_operations", "base_of_operations", False),
@@ -77,33 +74,30 @@ _HANDLERS: dict[ArticleType, TypeHandler] = {
 }
 
 
-async def build_link_maps(db: AsyncSession) -> tuple[AliasIndex, SlugMap]:
-    """Build alias index and slug map for all published articles in one query."""
+async def build_link_maps(db: AsyncSession) -> tuple[AliasIndex, PageNameMap]:
+    """Build alias index and page_name map for all published articles in one query."""
     result = await db.execute(
         select(Article).where(Article.status == ArticleStatus.published)
     )
     articles = result.scalars().all()
 
     index: AliasIndex = {}
-    slug_map: SlugMap = {}
+    page_name_map: PageNameMap = {}
 
     for article in articles:
-        slug_map[article.id] = article.slug
+        page_name_map[article.id] = article.page_name
 
-        index[normalize_str(article.slug)] = article.id
+        index[normalize_str(article.page_name)] = article.id
 
         handler = _HANDLERS.get(article.article_type)
         if handler is None:
             continue
 
-        if handler.index_designation and article.designation:
-            index[normalize_str(article.designation)] = article.id
-
         for alias_field in handler.alias_fields:
             for alias in article.metadata_.get(alias_field, []):
                 index[normalize_str(alias)] = article.id
 
-    return index, slug_map
+    return index, page_name_map
 
 
 async def build_alias_index(db: AsyncSession) -> AliasIndex:
@@ -112,7 +106,9 @@ async def build_alias_index(db: AsyncSession) -> AliasIndex:
     return index
 
 
-def render_wikilinks(content: str, index: AliasIndex, slug_map: SlugMap) -> str:
+def render_wikilinks(
+    content: str, index: AliasIndex, page_name_map: PageNameMap
+) -> str:
     """Replace [[...]] patterns with HTML links; unresolved targets become red-links."""
 
     def _replace(m: re.Match[str]) -> str:
@@ -122,8 +118,8 @@ def render_wikilinks(content: str, index: AliasIndex, slug_map: SlugMap) -> str:
         normalized = normalize_str(target)
         article_id = index.get(normalized)
         if article_id is not None:
-            slug = slug_map[article_id]
-            return f'<a href="/articles/{slug}/view">{display}</a>'
+            page_name = page_name_map[article_id]
+            return f'<a href="/articles/{page_name}/view">{display}</a>'
         return (
             f'<a href="/articles/new?slug={normalized}" class="red-link">{target}</a>'
         )
@@ -199,7 +195,7 @@ async def fetch_outgoing_links(
     """Return outgoing edges for an article: resolved wikilinks and metadata edges."""
     rows = await db.execute(
         text(
-            "SELECT a.slug, a.article_type, al.field_name, al.resolved_via"
+            "SELECT a.page_name, a.article_type, al.field_name, al.resolved_via"
             " FROM article_links al JOIN articles a ON a.id = al.target_id"
             " WHERE al.source_id = :id AND a.status = 'published'"
             " ORDER BY al.field_name NULLS FIRST, a.article_type"
@@ -208,7 +204,7 @@ async def fetch_outgoing_links(
     )
     return [
         {
-            "slug": r.slug,
+            "page_name": r.page_name,
             "article_type": r.article_type,
             "field_name": r.field_name,
             "resolved_via": r.resolved_via,
@@ -221,7 +217,7 @@ async def fetch_org_members(org_id: int, db: AsyncSession) -> list[dict[str, obj
     """Return published profiles whose affiliation edge points to this org."""
     rows = await db.execute(
         text(
-            "SELECT a.slug, a.designation,"
+            "SELECT a.page_name,"
             " a.metadata->>'status' AS status,"
             " a.metadata->'aliases' AS aliases"
             " FROM article_links al JOIN articles a ON a.id = al.source_id"
@@ -229,14 +225,13 @@ async def fetch_org_members(org_id: int, db: AsyncSession) -> list[dict[str, obj
             " AND al.field_name = 'affiliation'"
             " AND a.article_type = 'profile'"
             " AND a.status = 'published'"
-            " ORDER BY a.metadata->>'status', a.slug"
+            " ORDER BY a.metadata->>'status', a.page_name"
         ),
         {"org_id": org_id},
     )
     return [
         {
-            "slug": r.slug,
-            "designation": r.designation,
+            "page_name": r.page_name,
             "status": r.status or "unknown",
             "aliases": r.aliases or [],
         }
@@ -250,7 +245,7 @@ async def fetch_location_activity(
     """Return (events, residents) for a location derived from article_links."""
     event_rows = await db.execute(
         text(
-            "SELECT a.slug, a.metadata->>'event_date' AS event_date,"
+            "SELECT a.page_name, a.metadata->>'event_date' AS event_date,"
             " a.metadata->>'outcome' AS outcome"
             " FROM article_links al JOIN articles a ON a.id = al.source_id"
             " WHERE al.target_id = :location_id"
@@ -262,13 +257,13 @@ async def fetch_location_activity(
         {"location_id": location_id},
     )
     events = [
-        {"slug": r.slug, "event_date": r.event_date, "outcome": r.outcome}
+        {"page_name": r.page_name, "event_date": r.event_date, "outcome": r.outcome}
         for r in event_rows
     ]
 
     resident_rows = await db.execute(
         text(
-            "SELECT a.slug, a.designation, a.metadata->>'status' AS status"
+            "SELECT a.page_name, a.metadata->>'status' AS status"
             " FROM article_links al JOIN articles a ON a.id = al.source_id"
             " WHERE al.target_id = :location_id"
             " AND al.field_name = 'base_of_operations'"
@@ -278,7 +273,7 @@ async def fetch_location_activity(
         {"location_id": location_id},
     )
     residents = [
-        {"slug": r.slug, "designation": r.designation, "status": r.status or "unknown"}
+        {"page_name": r.page_name, "status": r.status or "unknown"}
         for r in resident_rows
     ]
 
@@ -291,7 +286,7 @@ async def fetch_incoming_links(
     """Return incoming edges for an article: articles that link here."""
     rows = await db.execute(
         text(
-            "SELECT a.slug, a.article_type, al.field_name"
+            "SELECT a.page_name, a.article_type, al.field_name"
             " FROM article_links al JOIN articles a ON a.id = al.source_id"
             " WHERE al.target_id = :id AND a.status = 'published'"
             " ORDER BY a.article_type, al.field_name NULLS FIRST"
@@ -299,23 +294,24 @@ async def fetch_incoming_links(
         {"id": article_id},
     )
     return [
-        {"slug": r.slug, "article_type": r.article_type, "field_name": r.field_name}
+        {
+            "page_name": r.page_name,
+            "article_type": r.article_type,
+            "field_name": r.field_name,
+        }
         for r in rows
     ]
 
 
 def _article_aliases(
     article_type: ArticleType,
-    slug: str,
-    designation: str | None,
+    page_name: str,
     metadata: dict[str, str | list[str] | None],
 ) -> set[str]:
     """Return all normalized alias strings for an article."""
-    aliases = {normalize_str(slug)}
+    aliases = {normalize_str(page_name)}
     handler = _HANDLERS.get(article_type)
     if handler:
-        if handler.index_designation and designation:
-            aliases.add(normalize_str(designation))
         for alias_field in handler.alias_fields:
             value = metadata.get(alias_field)
             if isinstance(value, list):
@@ -345,7 +341,7 @@ async def backfill_on_publish(article_id: int, db: AsyncSession) -> None:
         await db.execute(select(Article).where(Article.id == article_id))
     ).scalar_one()
     aliases = _article_aliases(
-        article.article_type, article.slug, article.designation, article.metadata_
+        article.article_type, article.page_name, article.metadata_
     )
     index, _ = await build_link_maps(db)
     for candidate in await _find_articles_referencing(aliases, article_id, db):

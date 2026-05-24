@@ -26,7 +26,7 @@ This cleanup collapses all of that:
   `designation` mapped column.
   `superhero_project/db/models.py alembic/versions/4fe5c7b33599_rename_slug_to_page_name.py`
 
-- [ ] **2.** `refactor(domain): rename slug→page_name, remove designation indexing`
+- [x] **2.** `refactor(domain): rename slug→page_name, remove designation indexing`
   In `domain/links.py`:
   - Renamed `SlugMap` → `PageNameMap` type alias; also renamed the `slug_map` local
     variable to `page_name_map` throughout (not left in place as originally planned).

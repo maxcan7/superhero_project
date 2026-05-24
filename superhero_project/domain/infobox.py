@@ -12,7 +12,7 @@ class ResolvedLink(TypedDict):
     """Infobox link item that resolved to a published article."""
 
     resolved: Literal[True]
-    slug: str
+    page_name: str
     article_type: str
 
 
@@ -34,12 +34,12 @@ def _field_edge_map(
     for edge in outgoing:
         fn = edge.get("field_name")
         rv = edge.get("resolved_via")
-        slug = edge.get("slug")
+        page_name = edge.get("page_name")
         article_type = edge.get("article_type")
-        if fn is None or rv is None or slug is None or article_type is None:
+        if fn is None or rv is None or page_name is None or article_type is None:
             continue
         result.setdefault(fn, {})[rv] = ResolvedLink(
-            resolved=True, slug=slug, article_type=article_type
+            resolved=True, page_name=page_name, article_type=article_type
         )
     return result
 
