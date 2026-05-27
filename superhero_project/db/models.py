@@ -97,6 +97,7 @@ class User(Base):
     comments: Mapped[list["Comment"]] = relationship(back_populates="author")
     votes: Mapped[list["Vote"]] = relationship(back_populates="user")
     edits: Mapped[list["ArticleHistory"]] = relationship(back_populates="editor")
+    notifications: Mapped[list["Notification"]] = relationship(back_populates="user")
 
 
 class Article(Base):
@@ -128,6 +129,7 @@ class Article(Base):
         server_default=func.now(), onupdate=func.now(), nullable=False
     )
     published_at: Mapped[datetime | None] = mapped_column()
+    moderator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     search_vector: Mapped[Any] = mapped_column(TSVECTOR(), nullable=True)
 
     author: Mapped["User"] = relationship(back_populates="articles")
@@ -228,3 +230,26 @@ class ArticleHistory(Base):
 
     article: Mapped["Article"] = relationship(back_populates="history")
     editor: Mapped["User"] = relationship(back_populates="edits")
+
+
+class Notification(Base):
+    """In-app notification delivered to a user."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(_BigPK, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+    article_id: Mapped[int | None] = mapped_column(
+        ForeignKey("articles.id", ondelete="CASCADE"), nullable=True
+    )
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    read: Mapped[bool] = mapped_column(nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), nullable=False
+    )
+
+    user: Mapped["User"] = relationship(back_populates="notifications")
+    article: Mapped["Article | None"] = relationship()

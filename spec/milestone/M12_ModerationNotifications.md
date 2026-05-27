@@ -1,5 +1,5 @@
 # M12: Moderation Notifications
-Status: planned
+Status: in-progress
 
 Completes the "Request Changes" moderation flow with revision notes and an
 in-app notification inbox, with optional email delivery as a follow-on task.
@@ -62,7 +62,7 @@ notifications (
 
 ## Tasks
 
-- [ ] **1.** `feat: add moderator_note column and notifications table`
+- [x] **1.** `feat: add moderator_note column and notifications table`
   Two Alembic migrations (keep them separate so each is independently
   revertible). `moderator_note TEXT` on `articles`; full `notifications` table
   as above. Add `Notification` ORM model.
