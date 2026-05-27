@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleTag
+from superhero_project.db.models import Notification
 from superhero_project.db.models import User
 
 pytestmark = pytest.mark.anyio
@@ -109,12 +110,22 @@ async def test_contributor_excludes_unpublished(
     )
 
 
+# ── Personal pages: auth guard ─────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        pytest.param("/me/articles", id="articles"),
+        pytest.param("/me/notifications", id="notifications"),
+    ],
+)
+async def test_me_pages_require_auth(client: AsyncClient, url: str) -> None:
+    """Unauthenticated requests to personal pages return 401."""
+    assert (await client.get(url)).status_code == 401
+
+
 # ── My articles (/me/articles) ─────────────────────────────────────────────────
-
-
-async def test_my_articles_requires_auth(client: AsyncClient) -> None:
-    """Unauthenticated request returns 401."""
-    assert (await client.get("/me/articles")).status_code == 401
 
 
 async def test_my_articles_empty_state(auth_client: AsyncClient) -> None:
@@ -156,3 +167,46 @@ async def test_my_articles_moderator_note_callout(
         "Changes requested: needs more detail"
         in (await auth_client.get("/me/articles")).text
     )
+
+
+# ── My notifications (/me/notifications) ───────────────────────────────────────
+
+
+@pytest.fixture
+async def unread_notification(db: AsyncSession, user: User) -> Notification:
+    """An unread notification for the primary test user."""
+    n = Notification(
+        user_id=user.id,
+        type="changes_requested",
+        message="Please revise.",
+    )
+    db.add(n)
+    await db.commit()
+    await db.refresh(n)
+    return n
+
+
+async def test_my_notifications_empty_state(auth_client: AsyncClient) -> None:
+    """Authenticated user with no notifications sees the empty state."""
+    assert "No notifications yet." in (await auth_client.get("/me/notifications")).text
+
+
+async def test_my_notifications_lists_notifications(
+    auth_client: AsyncClient, unread_notification: Notification
+) -> None:
+    """Notifications page shows the message for each notification."""
+    assert (
+        unread_notification.message in (await auth_client.get("/me/notifications")).text
+    )
+
+
+async def test_my_notifications_marks_as_read(
+    auth_client: AsyncClient,
+    db: AsyncSession,
+    unread_notification: Notification,
+) -> None:
+    """Visiting the notifications page marks all unread notifications as read."""
+    assert not unread_notification.read
+    await auth_client.get("/me/notifications")
+    await db.refresh(unread_notification)
+    assert unread_notification.read

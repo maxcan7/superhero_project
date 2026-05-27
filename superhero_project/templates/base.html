@@ -16,6 +16,10 @@
         {% if user %}
           <a href="/articles/new" class="nav-cta">+ New Article</a>
           <a href="/me/articles">My Articles</a>
+          <a href="/me/notifications" class="nav-bell">
+            Notifications
+            {% if request.state.unread_count %}<span class="nav-badge">{{ request.state.unread_count }}</span>{% endif %}
+          </a>
           {% if user.role in ('moderator', 'admin') %}
             <a href="/moderation/queue/view">Mod Queue</a>
           {% endif %}

@@ -1,5 +1,5 @@
 # M12: Moderation Notifications
-Status: in-progress
+Status: complete (tasks 1–4 shipped; task 5 deferred)
 
 Completes the "Request Changes" moderation flow with revision notes and an
 in-app notification inbox, with optional email delivery as a follow-on task.
@@ -83,12 +83,13 @@ notifications (
   `moderator_note` and sets `status = pending`.
   `superhero_project/routers/articles_html.py superhero_project/templates/`
 
-- [ ] **4.** `feat: notification inbox and nav unread count`
+- [x] **4.** `feat: notification inbox and nav unread count`
   New route `/me/notifications` listing the authenticated user's notifications,
   newest first, with mark-as-read on visit. Nav bar gains a bell icon with an
-  unread count badge (hidden when zero), populated by a count query injected
-  into base template context via a middleware or base context helper.
-  `superhero_project/routers/community.py superhero_project/templates/`
+  unread count badge (hidden when zero), populated by a global FastAPI
+  dependency (`inject_unread_count` in `dependencies.py`) that runs on every
+  request and sets `request.state.unread_count` via the normal DI session.
+  `superhero_project/dependencies.py superhero_project/routers/community.py superhero_project/templates/`
 
 - [ ] **5. (optional)** `feat: email delivery for notifications`
   Send an email when a notification is created, if the user has an email address
@@ -120,3 +121,8 @@ notifications (
   email on top without touching any prior task's code — it only adds the OAuth
   scope change, the email column, and a post-commit send in the notification
   creation path.
+- **Reject note out of scope**: adding a moderator note to the reject action is
+  analogous to request-changes but deferred; it can reuse the same notification
+  infrastructure when prioritised.
+- **Push notifications and threaded moderator ↔ author discussion** are out of
+  scope for this milestone.

@@ -14,6 +14,7 @@ from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleTag
 from superhero_project.db.models import ArticleType
+from superhero_project.db.models import Notification
 from superhero_project.db.models import User
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
@@ -120,6 +121,31 @@ async def contributor_profile(request: Request, username: str, db: DB) -> Respon
 
 
 # ── Personal pages ─────────────────────────────────────────────────────────────
+
+
+@me_router.get("/notifications", response_class=HTMLResponse)
+async def my_notifications(request: Request, db: DB) -> Response:
+    """Render the current user's notification inbox, marking all as read."""
+    user = await get_current_user(request, db)
+    notifications = (
+        (
+            await db.execute(
+                select(Notification)
+                .where(Notification.user_id == user.id)
+                .order_by(Notification.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for n in notifications:
+        n.read = True
+    await db.commit()
+    return _templates.TemplateResponse(
+        request=request,
+        name="me/notifications.html",
+        context={"notifications": notifications, "user": user},
+    )
 
 
 @me_router.get("/articles", response_class=HTMLResponse)

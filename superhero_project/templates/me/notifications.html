@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications — Superhero Wiki{% endblock %}
+
+{% block content %}
+<div class="me-layout">
+  <h1 class="me-heading">Notifications</h1>
+  {% if notifications %}
+    <ul class="notification-list">
+      {% for n in notifications %}
+        <li class="notification-item">
+          <span class="notification-message">{{ n.message }}</span>
+          <span class="notification-date">{{ n.created_at.strftime("%Y-%m-%d") }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No notifications yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
