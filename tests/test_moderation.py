@@ -160,22 +160,29 @@ async def test_force_submit(submit_scenario: tuple[AsyncClient, Article, int]) -
 
 
 @pytest.mark.parametrize(
-    ("action", "expected_status"),
+    ("action", "body", "expected_status"),
     [
-        pytest.param("approve", "published", id="approve"),
-        pytest.param("reject", "rejected", id="reject"),
-        pytest.param("request-changes", "draft", id="request-changes"),
+        pytest.param("approve", {}, "published", id="approve"),
+        pytest.param("reject", {}, "rejected", id="reject"),
+        pytest.param("request-changes", {}, "draft", id="request-changes"),
+        pytest.param(
+            "request-changes",
+            {"note": "fix this"},
+            "draft",
+            id="request-changes-with-note",
+        ),
     ],
 )
 async def test_moderator_action_transitions(
     mod_auth_client: AsyncClient,
     pending_article: Article,
     action: str,
+    body: dict,
     expected_status: str,
 ) -> None:
     """Each moderator action transitions the article to the correct status."""
     url = f"/moderation/{pending_article.page_name}/{action}"
-    resp = await mod_auth_client.post(url)
+    resp = await mod_auth_client.post(url, json=body)
     assert resp.json()["status"] == expected_status
 
 
@@ -185,7 +192,9 @@ async def test_moderator_action_requires_moderator(
 ) -> None:
     """Contributors cannot perform any moderator action."""
     assert (
-        await auth_client.post(f"/moderation/{pending_article.page_name}/{action}")
+        await auth_client.post(
+            f"/moderation/{pending_article.page_name}/{action}", json={}
+        )
     ).status_code == 403
 
 
@@ -195,7 +204,9 @@ async def test_moderator_action_wrong_status(
 ) -> None:
     """Moderator actions on a non-pending article return 409."""
     assert (
-        await mod_auth_client.post(f"/moderation/{draft_article.page_name}/{action}")
+        await mod_auth_client.post(
+            f"/moderation/{draft_article.page_name}/{action}", json={}
+        )
     ).status_code == 409
 
 
@@ -208,7 +219,7 @@ async def test_moderation_action_not_found(
 ) -> None:
     """All moderation actions on a nonexistent article return 404."""
     assert (
-        await mod_auth_client.post(f"/moderation/nonexistent/{action}")
+        await mod_auth_client.post(f"/moderation/nonexistent/{action}", json={})
     ).status_code == 404
 
 

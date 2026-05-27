@@ -68,7 +68,7 @@ notifications (
   as above. Add `Notification` ORM model.
   `alembic/versions/ superhero_project/db/models.py`
 
-- [ ] **2.** `feat: add revision note to request-changes moderation action`
+- [x] **2.** `feat: add revision note to request-changes moderation action`
   Replace the "Request Changes" button in the queue with a small inline form:
   `<textarea>` (optional) + submit button. The POST endpoint
   (`/moderation/{id}/request-changes`) accepts `note: str | None`, writes it to

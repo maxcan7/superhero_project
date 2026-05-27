@@ -18,6 +18,7 @@ from superhero_project._templates import templates as _templates
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
 from superhero_project.db.models import ArticleType
+from superhero_project.db.models import Notification
 from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
@@ -184,13 +185,43 @@ async def reject_article(request: Request, identifier: str, db: DB) -> QueueItem
     return await _transition(identifier, ArticleStatus.rejected, db)
 
 
+class RequestChangesBody(BaseModel):
+    """Optional moderator note attached when requesting changes."""
+
+    note: str | None = None
+
+
 @router.post("/{identifier}/request-changes")
-async def request_changes(request: Request, identifier: str, db: DB) -> QueueItemOut:
-    """Send a pending article back to the author for revision (pending → draft,
-    moderator/admin only)."""
+async def request_changes(
+    request: Request, identifier: str, body: RequestChangesBody, db: DB
+) -> QueueItemOut:
+    """Send a pending article back to the author for revision with an optional note
+    (pending → draft, moderator/admin only)."""
     user = await get_current_user(request, db)
     _require_moderator(user)
-    return await _transition(identifier, ArticleStatus.draft, db)
+    article = await fetch_article(
+        identifier, db, [selectinload(Article.tags), selectinload(Article.author)]
+    )
+    if article.status != ArticleStatus.pending:
+        raise HTTPException(status_code=409, detail="Article is not pending")
+    article.status = ArticleStatus.draft
+    note = body.note.strip() if body.note else None
+    article.moderator_note = note
+    message = (
+        f"Changes requested on {article.page_name}: {note}"
+        if note
+        else f"Changes requested on {article.page_name}."
+    )
+    db.add(
+        Notification(
+            user_id=article.author_id,
+            type="changes_requested",
+            article_id=article.id,
+            message=message,
+        )
+    )
+    await db.commit()
+    return _to_out(await _fetch_by_id(article.id, db))
 
 
 class DisambiguationCreate(BaseModel):
