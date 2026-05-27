@@ -76,7 +76,7 @@ notifications (
   with `type='changes_requested'` and a message derived from the note.
   `superhero_project/routers/moderation.py superhero_project/templates/moderation/`
 
-- [ ] **3.** `feat: show revision note callout on editor and My Articles`
+- [x] **3.** `feat: show revision note callout on editor and My Articles`
   On the editor page, if `article.moderator_note` is non-empty, render a
   callout above the form: *"Changes requested: [note]"*. Same indicator on the
   My Articles page for affected drafts. On re-submit, the router clears

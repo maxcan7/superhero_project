@@ -10,6 +10,10 @@
   <div class="editor-form-pane">
     <h1 class="editor-heading">{% if article %}Edit Article{% else %}New Article{% endif %}</h1>
 
+    {% if moderator_note %}
+    <div class="callout--warning">Changes requested: {{ moderator_note }}</div>
+    {% endif %}
+
     <form id="editor-form"
           data-mode="{{ 'edit' if article else 'create' }}"
           {% if identifier %}data-identifier="{{ identifier }}"{% endif %}>

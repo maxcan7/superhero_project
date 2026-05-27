@@ -409,6 +409,20 @@ async def test_edit_article_form_renders(
         assert resp.status_code == 200
         assert 'data-mode="edit"' in resp.text
         assert "Protector of the city" in resp.text
+        assert "Changes requested" not in resp.text
+
+
+async def test_editor_moderator_note_callout(
+    auth_client: AsyncClient,
+    db: AsyncSession,
+    draft_article: Article,
+) -> None:
+    """Edit form shows revision callout when moderator_note is set."""
+    draft_article.moderator_note = "please fix the intro"
+    await db.commit()
+    resp = await auth_client.get(f"/articles/{draft_article.page_name}/edit")
+    assert resp.status_code == 200
+    assert "Changes requested: please fix the intro" in resp.text
 
 
 # ── Org member roster ──────────────────────────────────────────────────────────

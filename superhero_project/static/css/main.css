@@ -577,6 +577,19 @@ a:hover { color: var(--color-accent-dark); text-decoration: underline; }
   color: var(--color-muted);
 }
 
+/* ── Callouts ───────────────────────────────────────────────────────────────── */
+.callout--warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.callout--inline { margin-top: 0.375rem; }
+
 /* ── Status badges ──────────────────────────────────────────────────────────── */
 .status-badge {
   display: inline-block;

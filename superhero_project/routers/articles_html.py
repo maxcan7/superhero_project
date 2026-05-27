@@ -373,5 +373,6 @@ async def edit_article_form(request: Request, identifier: str, db: DB) -> Respon
             "identifier": article.page_name,
             "article_types": _CREATABLE_ARTICLE_TYPES,
             "article_type_label": article_db.article_type.label,
+            "moderator_note": article_db.moderator_note,
         },
     )

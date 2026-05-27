@@ -138,6 +138,7 @@ async def submit_own_article(request: Request, identifier: str, db: DB) -> Queue
     if article.status != ArticleStatus.draft:
         raise HTTPException(status_code=409, detail="Article is not a draft")
     article.status = ArticleStatus.pending
+    article.moderator_note = None
     await db.commit()
     return _to_out(await _fetch_by_id(article.id, db))
 

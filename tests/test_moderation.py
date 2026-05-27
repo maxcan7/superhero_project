@@ -137,6 +137,22 @@ async def test_submit_transitions_to_pending(
     assert (await auth_client.post(url)).json()["status"] == "pending"
 
 
+async def test_submit_clears_moderator_note(
+    auth_client: AsyncClient,
+    mod_auth_client: AsyncClient,
+    db: AsyncSession,
+    pending_article: Article,
+) -> None:
+    """Re-submitting after request-changes clears moderator_note."""
+    await mod_auth_client.post(
+        f"/moderation/{pending_article.page_name}/request-changes",
+        json={"note": "fix the intro"},
+    )
+    await auth_client.post(f"/moderation/{pending_article.page_name}/submit")
+    await db.refresh(pending_article)
+    assert pending_article.moderator_note is None
+
+
 @pytest.mark.parametrize(
     "submit_scenario",
     [

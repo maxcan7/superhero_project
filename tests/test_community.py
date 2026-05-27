@@ -133,6 +133,7 @@ async def test_my_articles_shows_all_statuses(
     assert draft_article.page_name in text
     assert published_article.page_name in text
     assert pending_article.page_name in text
+    assert "Changes requested" not in text
 
 
 async def test_my_articles_excludes_other_users(
@@ -141,3 +142,17 @@ async def test_my_articles_excludes_other_users(
     """Articles authored by other users do not appear on this page."""
     text = (await other_auth_client.get("/me/articles")).text
     assert draft_article.page_name not in text
+
+
+async def test_my_articles_moderator_note_callout(
+    auth_client: AsyncClient,
+    db: AsyncSession,
+    draft_article: Article,
+) -> None:
+    """My-articles page shows revision callout for drafts with a moderator_note."""
+    draft_article.moderator_note = "needs more detail"
+    await db.commit()
+    assert (
+        "Changes requested: needs more detail"
+        in (await auth_client.get("/me/articles")).text
+    )

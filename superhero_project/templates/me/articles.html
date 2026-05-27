@@ -17,6 +17,9 @@
           <span class="status-badge status-badge--{{ article.status }}">{{ article.status }}</span>
           <span class="article-updated">{{ article.updated_at.strftime("%Y-%m-%d") }}</span>
           <a href="/articles/{{ article.page_name }}/edit" class="btn btn-secondary me-edit-btn">Edit</a>
+          {% if article.moderator_note %}
+          <div class="callout--warning callout--inline">Changes requested: {{ article.moderator_note }}</div>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>

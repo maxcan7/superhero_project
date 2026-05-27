@@ -22,6 +22,7 @@ class ArticleListItem(TypedDict):
     metadata: Mapping[str, object]
     tags: list[str]
     updated_at: datetime
+    moderator_note: str | None
 
 
 def article_list_item(article: Article) -> ArticleListItem:
@@ -32,6 +33,7 @@ def article_list_item(article: Article) -> ArticleListItem:
         "metadata": article.metadata_,
         "tags": [t.tag for t in article.tags],
         "updated_at": article.updated_at,
+        "moderator_note": article.moderator_note,
     }
 
 
