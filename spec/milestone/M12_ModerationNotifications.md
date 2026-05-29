@@ -124,5 +124,12 @@ notifications (
 - **Reject note out of scope**: adding a moderator note to the reject action is
   analogous to request-changes but deferred; it can reuse the same notification
   infrastructure when prioritised.
+- **Email delivery mechanism**: Task 5 uses FastAPI `BackgroundTasks` for a
+  best-effort fire-and-forget send. If delivery reliability becomes important at
+  scale (more event types, higher volume, need for retries), the natural upgrade
+  is an async task/event queue (e.g. arq backed by Redis): notification creation
+  enqueues a job, a worker process handles the send with retry logic. The
+  `BackgroundTasks` approach keeps the door open for this — switching is a
+  contained change to the notification creation path.
 - **Push notifications and threaded moderator ↔ author discussion** are out of
   scope for this milestone.
