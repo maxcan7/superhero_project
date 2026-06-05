@@ -1,5 +1,5 @@
 # C9: Continuous Integration
-Status: not started
+Status: complete
 
 Adds a GitHub Actions workflow that runs `uv audit` on every push and pull
 request to main. Establishes the CI skeleton so future jobs (tests, type
@@ -9,7 +9,7 @@ checking) have a home.
 
 ## Tasks
 
-- [ ] **1.** `chore: add GitHub Actions audit workflow`
+- [x] **1.** `chore: add GitHub Actions audit workflow`
   Create `.github/workflows/audit.yml`. The workflow runs `uv audit` to catch known CVEs in the dependency tree on every push to main and on pull requests targeting main.
 
   ```yaml
