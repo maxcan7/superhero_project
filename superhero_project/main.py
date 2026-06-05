@@ -50,7 +50,12 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Superhero Project", dependencies=[Depends(inject_unread_count)]
     )
-    app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.session_secret,
+        https_only=settings.https_only,
+        same_site="lax",
+    )
     app.mount(
         "/static",
         StaticFiles(directory=Path(__file__).parent / "static"),

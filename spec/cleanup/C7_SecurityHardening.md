@@ -20,7 +20,7 @@ Fixes four active vulnerabilities in the application and adds bandit to the pre-
   renderer-generated HTML.
   `superhero_project/routers/articles.py`
 
-- [ ] **2.** `fix(auth): harden session cookie flags`
+- [x] **2.** `fix(auth): harden session cookie flags`
   `SessionMiddleware` is configured with only `secret_key`. In production the cookie must be HTTPS-only; `same_site` should be explicit.
 
   Add `https_only: bool = False` to `Settings` (defaults to off for local dev; set `HTTPS_ONLY=true` in the production environment). Set `same_site="lax"` unconditionally — `strict` breaks the GitHub OAuth callback because GitHub's redirect is a cross-site navigation and the browser won't attach the cookie.

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     github_client_id: str
     github_client_secret: str
     session_secret: str
+    https_only: bool = False
     base_url: str = "http://localhost:8000"
 
 
