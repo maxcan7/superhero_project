@@ -15,6 +15,12 @@ repos:
         language: system
         types: [python]
 
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.2
     hooks:

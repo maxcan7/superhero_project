@@ -84,6 +84,10 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
+[tool.bandit]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B105"]
+
 [tool.alembic]
 script_location = "alembic"
 prepend_sys_path = ["."]
