@@ -1,9 +1,7 @@
 # C8: Auth CSRF & Rate Limiting
 Status: not started
 
-Adds an OAuth state nonce to prevent login CSRF, and introduces rate limiting
-across auth and write endpoints via `slowapi`. No schema changes. Complements
-the hardening in C7.
+Adds an OAuth state nonce to prevent login CSRF, and introduces rate limiting across auth and write endpoints via `slowapi`. No schema changes. Complements the hardening in C7.
 
 ---
 
@@ -11,12 +9,9 @@ the hardening in C7.
 
 - [ ] **1.** `fix(auth): add OAuth state nonce to prevent login CSRF`
   The `/auth/login` → `/auth/callback` flow sends no `state` parameter.
-  An attacker can initiate an OAuth flow and trick a user into completing it,
-  binding the victim's session to the attacker's GitHub identity.
+  An attacker can initiate an OAuth flow and trick a user into completing it, binding the victim's session to the attacker's GitHub identity.
 
-  On `/auth/login`: generate a `secrets.token_urlsafe(32)` nonce, store it in
-  the session as `"oauth_state"`, and include it as the `state` parameter in
-  the GitHub authorization URL.
+  On `/auth/login`: generate a `secrets.token_urlsafe(32)` nonce, store it in the session as `"oauth_state"`, and include it as the `state` parameter in the GitHub authorization URL.
 
   On `/auth/callback`: accept `state: str` as a query parameter. Pop
   `"oauth_state"` from the session and compare — if missing or mismatched,
@@ -38,11 +33,7 @@ the hardening in C7.
   `superhero_project/routers/auth.py`
 
 - [ ] **2.** `feat(security): add rate limiting via slowapi`
-  No endpoints are rate-limited. Add `slowapi` (wraps the `limits` library,
-  idiomatic for FastAPI) and apply per-IP limits to auth and high-risk write
-  endpoints. For this deployment (single-process systemd unit per M8),
-  in-memory storage is sufficient; a Redis backend can be swapped in later via
-  the `slowapi` storage URI.
+  No endpoints are rate-limited. Add `slowapi` (wraps the `limits` library, idiomatic for FastAPI) and apply per-IP limits to auth and high-risk write endpoints. For this deployment (single-process systemd unit per M8), in-memory storage is sufficient; a Redis backend can be swapped in later via the `slowapi` storage URI.
 
   Add `slowapi` to `pyproject.toml` dependencies, then `uv sync`.
 

@@ -1,19 +1,16 @@
 # C7: Security Hardening
 Status: not started
 
-Fixes four active vulnerabilities in the application and adds bandit to the
-pre-commit pipeline. No schema changes. C8 covers the complementary OAuth and
-rate-limiting work.
+Fixes four active vulnerabilities in the application and adds bandit to the pre-commit pipeline. No schema changes. C8 covers the complementary OAuth and rate-limiting work.
 
 ---
 
 ## Tasks
 
-- [ ] **1.** `fix(articles): disable raw HTML passthrough in markdown-it`
+- [x] **1.** `fix(articles): disable raw HTML passthrough in markdown-it`
   `MarkdownIt()` defaults to `html: True`, which passes raw `<script>` and
   other tags straight through the renderer. Combined with `| safe` in
-  `article.html`, any contributor can execute arbitrary JavaScript in readers'
-  browsers.
+  `article.html`, any contributor can execute arbitrary JavaScript in readers' browsers.
 
   Disable both inline and block HTML:
   ```python
@@ -24,13 +21,9 @@ rate-limiting work.
   `superhero_project/routers/articles.py`
 
 - [ ] **2.** `fix(auth): harden session cookie flags`
-  `SessionMiddleware` is configured with only `secret_key`. In production the
-  cookie must be HTTPS-only; `same_site` should be explicit.
+  `SessionMiddleware` is configured with only `secret_key`. In production the cookie must be HTTPS-only; `same_site` should be explicit.
 
-  Add `https_only: bool = False` to `Settings` (defaults to off for local dev;
-  set `HTTPS_ONLY=true` in the production environment). Set `same_site="lax"`
-  unconditionally — `strict` breaks the GitHub OAuth callback because GitHub's
-  redirect is a cross-site navigation and the browser won't attach the cookie.
+  Add `https_only: bool = False` to `Settings` (defaults to off for local dev; set `HTTPS_ONLY=true` in the production environment). Set `same_site="lax"` unconditionally — `strict` breaks the GitHub OAuth callback because GitHub's redirect is a cross-site navigation and the browser won't attach the cookie.
 
   ```python
   app.add_middleware(
@@ -43,11 +36,7 @@ rate-limiting work.
   `superhero_project/config.py superhero_project/main.py`
 
 - [ ] **3.** `fix(security): add security response headers middleware`
-  No security headers are currently set. Add a pure ASGI middleware class in
-  `main.py` that intercepts the `http.response.start` message and injects
-  headers before they are sent. This is the approach used by Starlette's own
-  built-in middlewares (`GZipMiddleware`, `HTTPSRedirectMiddleware`, etc.) and
-  avoids the issues with `BaseHTTPMiddleware`: no response body buffering, no
+  No security headers are currently set. Add a pure ASGI middleware class in `main.py` that intercepts the `http.response.start` message and injects headers before they are sent. This is the approach used by Starlette's own built-in middlewares (`GZipMiddleware`, `HTTPSRedirectMiddleware`, etc.) and avoids the issues with `BaseHTTPMiddleware`: no response body buffering, no
   `contextvar` propagation bugs.
 
   ```python
@@ -77,16 +66,12 @@ rate-limiting work.
           await self.app(scope, receive, send_with_headers)
   ```
 
-  Wire it in `create_app()` via `app.add_middleware(SecurityHeadersMiddleware)`.
-  The CSP assumes all JS and CSS is served from `/static/`. Verify against the
-  actual template `{% block scripts %}` usage — add `'unsafe-inline'` to
+  Wire it in `create_app()` via `app.add_middleware(SecurityHeadersMiddleware)`. The CSP assumes all JS and CSS is served from `/static/`. Verify against the actual template `{% block scripts %}` usage — add `'unsafe-inline'` to
   `script-src` only if inline scripts are present and cannot be removed.
   `superhero_project/main.py`
 
 - [ ] **4.** `fix(articles): restrict non-published articles to authorized users`
-  `GET /articles/{identifier}`, `GET /articles/{identifier}/history`, and the
-  HTML view `GET /articles/{identifier}/view` all fetch by `page_name` with no
-  status check. An unauthenticated visitor who knows a page name can read draft
+  `GET /articles/{identifier}`, `GET /articles/{identifier}/history`, and the HTML view `GET /articles/{identifier}/view` all fetch by `page_name` with no status check. An unauthenticated visitor who knows a page name can read draft
   and rejected content.
 
   After fetching the article, apply this guard before returning:
@@ -99,8 +84,7 @@ rate-limiting work.
   `superhero_project/routers/articles.py superhero_project/routers/articles_html.py`
 
 - [ ] **5.** `chore: add bandit to pre-commit`
-  Add bandit as a pre-commit hook so security anti-patterns are caught locally
-  on commit, same as ruff catches style issues.
+  Add bandit as a pre-commit hook so security anti-patterns are caught locally on commit, same as ruff catches style issues.
 
   In `.pre-commit-config.yaml`:
   ```yaml
@@ -117,6 +101,5 @@ rate-limiting work.
   exclude_dirs = ["tests"]
   ```
 
-  Run `pre-commit autoupdate` to pin the rev, then `pre-commit run bandit --all-files`
-  and resolve any findings before committing.
+  Run `pre-commit autoupdate` to pin the rev, then `pre-commit run bandit --all-files` and resolve any findings before committing.
   `.pre-commit-config.yaml pyproject.toml`

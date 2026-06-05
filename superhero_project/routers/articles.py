@@ -43,7 +43,7 @@ from superhero_project.domain.profile import ProfileMetadata
 from superhero_project.domain.tech import TechMetadata
 from superhero_project.routers._utils import fetch_article
 
-_md = MarkdownIt()
+_md = MarkdownIt().disable("html_block").disable("html_inline")
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
