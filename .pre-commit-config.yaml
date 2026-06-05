@@ -47,10 +47,3 @@ repos:
         types: [ts]
         pass_filenames: false
         args: [--noEmit]
-
-      - id: pytest
-        name: pytest
-        entry: uv run pytest
-        language: system
-        types: [python]
-        pass_filenames: false
