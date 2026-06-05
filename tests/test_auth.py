@@ -9,11 +9,15 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from superhero_project.config import settings
 from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.routers.auth import _fetch_github_user
+from tests.utils import make_session_cookie
 
 pytestmark = pytest.mark.anyio
+
+OAuthState = tuple[str, dict[str, str]]
 
 
 # ── Redirects ──────────────────────────────────────────────────────────────────
@@ -45,17 +49,31 @@ async def test_auth_redirect(
 # ── OAuth callback ─────────────────────────────────────────────────────────────
 
 
+@pytest.fixture
+def oauth_state() -> OAuthState:
+    """Return a (state, cookies) pair with oauth_state pre-seeded in the session."""
+    state = "test-oauth-state"
+    cookie = make_session_cookie({"oauth_state": state}, settings.session_secret)
+    return state, {"session": cookie}
+
+
 async def test_callback_new_user(
     monkeypatch: pytest.MonkeyPatch,
     client: AsyncClient,
     db: AsyncSession,
+    oauth_state: OAuthState,
 ) -> None:
     """OAuth callback with a new GitHub id creates a user record."""
     monkeypatch.setattr(
         "superhero_project.routers.auth._fetch_github_user",
         AsyncMock(return_value=(42, "newuser", "New User")),
     )
-    await client.get("/auth/callback?code=x", follow_redirects=False)
+    state, cookies = oauth_state
+    await client.get(
+        f"/auth/callback?code=x&state={state}",
+        follow_redirects=False,
+        cookies=cookies,
+    )
     result = await db.execute(select(User).where(User.github_id == 42))
     assert result.scalar_one_or_none() is not None
 
@@ -93,13 +111,29 @@ async def test_callback_github_error_redirects(
     monkeypatch: pytest.MonkeyPatch,
     client: AsyncClient,
     exc: Exception,
+    oauth_state: OAuthState,
 ) -> None:
     """OAuth callback redirects home gracefully when GitHub returns an error."""
     monkeypatch.setattr(
         "superhero_project.routers.auth._fetch_github_user",
         AsyncMock(side_effect=exc),
     )
-    resp = await client.get("/auth/callback?code=bogus", follow_redirects=False)
+    state, cookies = oauth_state
+    resp = await client.get(
+        f"/auth/callback?code=bogus&state={state}",
+        follow_redirects=False,
+        cookies=cookies,
+    )
+    assert resp.status_code in (302, 307)
+    assert resp.headers["location"] == "/"
+
+
+async def test_callback_state_mismatch_redirects(client: AsyncClient) -> None:
+    """OAuth callback redirects home without login when state does not match."""
+    resp = await client.get(
+        "/auth/callback?code=x&state=wrong",
+        follow_redirects=False,
+    )
     assert resp.status_code in (302, 307)
     assert resp.headers["location"] == "/"
 
@@ -108,6 +142,7 @@ async def test_callback_existing_user_updated(
     monkeypatch: pytest.MonkeyPatch,
     client: AsyncClient,
     db: AsyncSession,
+    oauth_state: OAuthState,
 ) -> None:
     """OAuth callback with a known GitHub id updates login and display name."""
     existing = User(
@@ -123,6 +158,11 @@ async def test_callback_existing_user_updated(
         "superhero_project.routers.auth._fetch_github_user",
         AsyncMock(return_value=(42, "newlogin", "New Name")),
     )
-    await client.get("/auth/callback?code=x", follow_redirects=False)
+    state, cookies = oauth_state
+    await client.get(
+        f"/auth/callback?code=x&state={state}",
+        follow_redirects=False,
+        cookies=cookies,
+    )
     await db.refresh(existing)
     assert existing.github_username == "newlogin"

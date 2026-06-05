@@ -1,5 +1,6 @@
 """GitHub OAuth router: login redirect, token exchange, and logout."""
 
+import secrets
 from urllib.parse import urlencode
 
 import httpx
@@ -73,21 +74,26 @@ async def _upsert_user(
 
 
 @router.get("/login")
-async def login() -> RedirectResponse:
+async def login(request: Request) -> RedirectResponse:
     """Redirect the user to GitHub's OAuth authorization page."""
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
     params = urlencode(
         {
             "client_id": settings.github_client_id,
             "redirect_uri": f"{settings.base_url}/auth/callback",
             "scope": "read:user",
+            "state": state,
         }
     )
     return RedirectResponse(f"{_GITHUB_AUTH_URL}?{params}")
 
 
 @router.get("/callback")
-async def callback(request: Request, code: str, db: DB) -> RedirectResponse:
+async def callback(request: Request, code: str, state: str, db: DB) -> RedirectResponse:
     """Handle the GitHub OAuth callback, upsert the user, and set the session."""
+    if state != request.session.pop("oauth_state", None):
+        return RedirectResponse("/")
     try:
         gh_id, gh_username, display_name = await _fetch_github_user(code)
     except (httpx.HTTPError, KeyError):

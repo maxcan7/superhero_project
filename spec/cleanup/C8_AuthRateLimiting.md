@@ -7,7 +7,7 @@ Adds an OAuth state nonce to prevent login CSRF, and introduces rate limiting ac
 
 ## Tasks
 
-- [ ] **1.** `fix(auth): add OAuth state nonce to prevent login CSRF`
+- [x] **1.** `fix(auth): add OAuth state nonce to prevent login CSRF`
   The `/auth/login` → `/auth/callback` flow sends no `state` parameter.
   An attacker can initiate an OAuth flow and trick a user into completing it, binding the victim's session to the attacker's GitHub identity.
 
