@@ -21,6 +21,7 @@ from superhero_project.db.models import ArticleType
 from superhero_project.dependencies import get_current_user_opt
 from superhero_project.dependencies import get_db
 from superhero_project.dependencies import inject_unread_count
+from superhero_project.middleware import SecurityHeadersMiddleware
 from superhero_project.routers import articles
 from superhero_project.routers import articles_html
 from superhero_project.routers import auth
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Superhero Project", dependencies=[Depends(inject_unread_count)]
     )
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.session_secret,

@@ -28,9 +28,9 @@
           <td>{{ article.author_name }}</td>
           <td>{{ article.updated_at.strftime("%Y-%m-%d") }}</td>
           <td class="action-cell">
-            <button onclick="moderate('{{ article.page_name }}', 'approve')">Approve</button>
-            <button onclick="moderate('{{ article.page_name }}', 'reject')">Reject</button>
-            <form class="request-changes-form" onsubmit="requestChanges(event, '{{ article.page_name }}')">
+            <button data-page-name="{{ article.page_name }}" data-action="approve">Approve</button>
+            <button data-page-name="{{ article.page_name }}" data-action="reject">Reject</button>
+            <form class="request-changes-form" data-page-name="{{ article.page_name }}">
               <textarea name="note" placeholder="Note (optional)" rows="2"></textarea>
               <button type="submit">Request Changes</button>
             </form>
@@ -44,34 +44,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-function removeRow(page_name) {
-  const row = document.getElementById(`row-${page_name}`);
-  if (row) row.remove();
-  const tbody = document.querySelector(".queue-table tbody");
-  if (tbody && tbody.rows.length === 0) {
-    const table = document.querySelector(".queue-table");
-    table.replaceWith(Object.assign(document.createElement("p"), {
-      className: "empty-state",
-      textContent: "No articles pending review.",
-    }));
-  }
-}
-
-async function moderate(page_name, action) {
-  const resp = await fetch(`/moderation/${page_name}/${action}`, { method: "POST" });
-  if (resp.ok) removeRow(page_name);
-}
-
-async function requestChanges(event, page_name) {
-  event.preventDefault();
-  const note = event.target.note.value.trim() || null;
-  const resp = await fetch(`/moderation/${page_name}/request-changes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ note }),
-  });
-  if (resp.ok) removeRow(page_name);
-}
-</script>
+<script src="/static/js/queue.js"></script>
 {% endblock %}

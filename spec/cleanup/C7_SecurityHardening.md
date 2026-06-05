@@ -35,8 +35,8 @@ Fixes four active vulnerabilities in the application and adds bandit to the pre-
   ```
   `superhero_project/config.py superhero_project/main.py`
 
-- [ ] **3.** `fix(security): add security response headers middleware`
-  No security headers are currently set. Add a pure ASGI middleware class in `main.py` that intercepts the `http.response.start` message and injects headers before they are sent. This is the approach used by Starlette's own built-in middlewares (`GZipMiddleware`, `HTTPSRedirectMiddleware`, etc.) and avoids the issues with `BaseHTTPMiddleware`: no response body buffering, no
+- [x] **3.** `fix(security): add security response headers middleware`
+  No security headers are currently set. Add a pure ASGI middleware class in `middleware.py` that intercepts the `http.response.start` message and injects headers before they are sent. This is the approach used by Starlette's own built-in middlewares (`GZipMiddleware`, `HTTPSRedirectMiddleware`, etc.) and avoids the issues with `BaseHTTPMiddleware`: no response body buffering, no
   `contextvar` propagation bugs.
 
   ```python
@@ -66,13 +66,11 @@ Fixes four active vulnerabilities in the application and adds bandit to the pre-
           await self.app(scope, receive, send_with_headers)
   ```
 
-  Wire it in `create_app()` via `app.add_middleware(SecurityHeadersMiddleware)`. The CSP assumes all JS and CSS is served from `/static/`. Verify against the actual template `{% block scripts %}` usage — add `'unsafe-inline'` to
-  `script-src` only if inline scripts are present and cannot be removed.
-  `superhero_project/main.py`
+  Wire it in `create_app()` via `app.add_middleware(SecurityHeadersMiddleware)`. Inline scripts in `article.html` and `moderation/queue.html` were extracted to `article.js` and `queue.js`
+  respectively (with inline `onclick`/`onsubmit` handlers replaced by `data-*` attributes), so `'unsafe-inline'` is not needed.
+  `superhero_project/middleware.py superhero_project/main.py`
 
-- [ ] **4.** `fix(articles): restrict non-published articles to authorized users`
-  `GET /articles/{identifier}`, `GET /articles/{identifier}/history`, and the HTML view `GET /articles/{identifier}/view` all fetch by `page_name` with no status check. An unauthenticated visitor who knows a page name can read draft
-  and rejected content.
+- [ ] **4.** `fix(articles): restrict non-published articles to authorized users` `GET /articles/{identifier}`, `GET /articles/{identifier}/history`, and the HTML view `GET /articles/{identifier}/view` all fetch by `page_name` with no status check. An unauthenticated visitor who knows a page name can read draft and rejected content.
 
   After fetching the article, apply this guard before returning:
   - If `status == published`: allow anyone.

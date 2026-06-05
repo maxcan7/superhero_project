@@ -137,18 +137,5 @@
 {% endblock %}
 
 {% block scripts %}
-{% if is_author and article.status == 'draft' %}
-<script>
-document.getElementById('submit-review-btn').addEventListener('click', async function () {
-  this.disabled = true;
-  const resp = await fetch('/moderation/{{ identifier }}/submit', { method: 'POST' });
-  if (resp.ok) {
-    this.textContent = 'Submitted for Review';
-  } else {
-    this.disabled = false;
-  }
-});
-</script>
-{% endif %}
 <script src="/static/js/article.js"></script>
 {% endblock %}
