@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     session_secret: str
     https_only: bool = False
     base_url: str = "http://localhost:8000"
+    rate_limit_auth: str = "20/minute"
+    rate_limit_article_create: str = "30/hour"
+    rate_limit_article_render: str = "60/minute"
+    rate_limit_comment_create: str = "30/minute"
 
 
 settings = Settings()

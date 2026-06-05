@@ -1,18 +1,24 @@
 """FastAPI application factory."""
 
+from collections.abc import Awaitable
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from fastapi import Depends
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
+from superhero_project._limiter import limiter
 from superhero_project._templates import templates as _templates
 from superhero_project.config import settings
 from superhero_project.db.models import Article
@@ -32,6 +38,8 @@ from superhero_project.routers import votes
 from superhero_project.routers._utils import ArticleListItem
 from superhero_project.routers._utils import article_list_item
 
+_ExcHandler = Callable[[Request, Exception], Response | Awaitable[Response]]
+
 
 async def _recent_articles(db: AsyncSession) -> list[ArticleListItem]:
     """Return the 20 most recently updated published articles as template dicts."""
@@ -50,6 +58,11 @@ def create_app() -> FastAPI:
     """Construct and configure the FastAPI application."""
     app = FastAPI(
         title="Superhero Project", dependencies=[Depends(inject_unread_count)]
+    )
+    app.state.limiter = limiter
+    app.add_exception_handler(
+        RateLimitExceeded,
+        cast(_ExcHandler, _rate_limit_exceeded_handler),
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(

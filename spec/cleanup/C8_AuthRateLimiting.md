@@ -1,5 +1,5 @@
 # C8: Auth CSRF & Rate Limiting
-Status: not started
+Status: complete
 
 Adds an OAuth state nonce to prevent login CSRF, and introduces rate limiting across auth and write endpoints via `slowapi`. No schema changes. Complements the hardening in C7.
 
@@ -32,7 +32,7 @@ Adds an OAuth state nonce to prevent login CSRF, and introduces rate limiting ac
   ```
   `superhero_project/routers/auth.py`
 
-- [ ] **2.** `feat(security): add rate limiting via slowapi`
+- [x] **2.** `feat(security): add rate limiting via slowapi`
   No endpoints are rate-limited. Add `slowapi` (wraps the `limits` library, idiomatic for FastAPI) and apply per-IP limits to auth and high-risk write endpoints. For this deployment (single-process systemd unit per M8), in-memory storage is sufficient; a Redis backend can be swapped in later via the `slowapi` storage URI.
 
   Add `slowapi` to `pyproject.toml` dependencies, then `uv sync`.
@@ -48,7 +48,7 @@ Adds an OAuth state nonce to prevent login CSRF, and introduces rate limiting ac
   app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
   ```
 
-  Apply limits with the `@limiter.limit(...)` decorator. Suggested limits:
+  Apply limits with the `@limiter.limit(...)` decorator. Default limits:
 
   | Endpoint | Limit |
   |---|---|

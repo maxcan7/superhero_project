@@ -10,6 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from superhero_project._limiter import limiter
+from superhero_project.config import settings
 from superhero_project.db.models import Comment
 from superhero_project.db.models import User
 from superhero_project.dependencies import DB
@@ -83,6 +85,7 @@ async def list_comments(identifier: str, db: DB) -> list[CommentOut]:
 
 
 @router.post("/{identifier}", status_code=201)
+@limiter.limit(settings.rate_limit_comment_create)
 async def create_comment(
     request: Request, identifier: str, body: CommentIn, db: DB
 ) -> CommentOut:

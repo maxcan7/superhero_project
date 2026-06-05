@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from superhero_project._limiter import limiter
 from superhero_project.config import settings
 from superhero_project.db.models import User
 from superhero_project.dependencies import DB
@@ -74,6 +75,7 @@ async def _upsert_user(
 
 
 @router.get("/login")
+@limiter.limit(settings.rate_limit_auth)
 async def login(request: Request) -> RedirectResponse:
     """Redirect the user to GitHub's OAuth authorization page."""
     state = secrets.token_urlsafe(32)
@@ -90,6 +92,7 @@ async def login(request: Request) -> RedirectResponse:
 
 
 @router.get("/callback")
+@limiter.limit(settings.rate_limit_auth)
 async def callback(request: Request, code: str, state: str, db: DB) -> RedirectResponse:
     """Handle the GitHub OAuth callback, upsert the user, and set the session."""
     if state != request.session.pop("oauth_state", None):

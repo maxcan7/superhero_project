@@ -17,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.responses import Response
 
+from superhero_project._limiter import limiter
+from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleHistory
 from superhero_project.db.models import ArticleStatus
@@ -238,13 +240,15 @@ class RenderRequest(BaseModel):
 
 
 @router.post("/render", response_class=HTMLResponse)
-async def render_markdown(body: RenderRequest, db: DB) -> Response:
+@limiter.limit(settings.rate_limit_article_render)
+async def render_markdown(request: Request, body: RenderRequest, db: DB) -> Response:
     """Render a Markdown string to HTML — used by the live editor preview."""
     index, page_name_map = await build_link_maps(db)
     return HTMLResponse(_render(body.content, index, page_name_map))
 
 
 @router.post("/", status_code=201)
+@limiter.limit(settings.rate_limit_article_create)
 async def create_article(request: Request, body: ArticleCreate, db: DB) -> ArticleOut:
     """Create a new article as a draft."""
     user = await get_current_user(request, db)

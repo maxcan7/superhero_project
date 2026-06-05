@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from superhero_project._limiter import limiter
 from superhero_project.config import settings
 from superhero_project.db.models import Article
 from superhero_project.db.models import ArticleStatus
@@ -28,6 +29,14 @@ from tests.utils import make_session_cookie
 
 pg_noproc = factories.postgresql_noproc(user=getpass.getuser())
 pg = factories.postgresql("pg_noproc")
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> Generator[None, None, None]:
+    """Reset the rate limiter between tests."""
+    # global singleton — revisit if pytest-xdist parallelism is added
+    yield
+    limiter.reset()
 
 
 @pytest.fixture
