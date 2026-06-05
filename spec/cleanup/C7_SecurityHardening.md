@@ -70,7 +70,7 @@ Fixes four active vulnerabilities in the application and adds bandit to the pre-
   respectively (with inline `onclick`/`onsubmit` handlers replaced by `data-*` attributes), so `'unsafe-inline'` is not needed.
   `superhero_project/middleware.py superhero_project/main.py`
 
-- [ ] **4.** `fix(articles): restrict non-published articles to authorized users` `GET /articles/{identifier}`, `GET /articles/{identifier}/history`, and the HTML view `GET /articles/{identifier}/view` all fetch by `page_name` with no status check. An unauthenticated visitor who knows a page name can read draft and rejected content.
+- [x] **4.** `fix(articles): restrict non-published articles to authorized users` `GET /articles/{identifier}`, `GET /articles/{identifier}/history`, and the HTML view `GET /articles/{identifier}/view` all fetch by `page_name` with no status check. An unauthenticated visitor who knows a page name can read draft and rejected content.
 
   After fetching the article, apply this guard before returning:
   - If `status == published`: allow anyone.

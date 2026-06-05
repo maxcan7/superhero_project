@@ -182,32 +182,53 @@ async def test_delete_article(
 
 
 @pytest.mark.parametrize(
-    ("method", "url_tmpl", "body"),
+    ("method", "url_tmpl", "body", "use_draft", "expected_status"),
     [
         pytest.param(
             "post",
             "/articles/",
             {"article_type": "lore", "page_name": "test"},
+            False,
+            401,
             id="create",
         ),
         pytest.param(
-            "put", "/articles/{page_name}", {"content": "## Nope"}, id="update"
+            "put",
+            "/articles/{page_name}",
+            {"content": "## Nope"},
+            False,
+            401,
+            id="update",
         ),
-        pytest.param("delete", "/articles/{page_name}", None, id="delete"),
+        pytest.param("delete", "/articles/{page_name}", None, False, 401, id="delete"),
+        pytest.param("get", "/articles/{page_name}", None, True, 403, id="get-draft"),
+        pytest.param(
+            "get",
+            "/articles/{page_name}/history",
+            None,
+            True,
+            403,
+            id="get-draft-history",
+        ),
     ],
 )
 async def test_protected_route_requires_session(
     client: AsyncClient,
     published_article: Article,
+    draft_article: Article,
     method: str,
     url_tmpl: str,
     body: dict | None,
+    use_draft: bool,
+    expected_status: int,
 ) -> None:
-    """Unauthenticated requests to write endpoints return 401."""
-    url = url_tmpl.format(page_name=published_article.page_name)
+    """Unauthenticated requests to write endpoints return 401; to non-published articles
+    return 403."""
+    article = draft_article if use_draft else published_article
+    url = url_tmpl.format(page_name=article.page_name)
     kwargs = {"json": body} if body is not None else {}
     resp = await getattr(client, method)(url, **kwargs)
-    assert resp.status_code == 401
+    assert resp.status_code == expected_status
 
 
 @pytest.mark.parametrize(

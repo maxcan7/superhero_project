@@ -38,6 +38,7 @@ from superhero_project.domain.links import fetch_org_members
 from superhero_project.domain.links import fetch_outgoing_links
 from superhero_project.routers._utils import fetch_article
 from superhero_project.routers.articles import _can_edit
+from superhero_project.routers.articles import _check_article_access
 from superhero_project.routers.articles import _compute_diffs
 from superhero_project.routers.articles import _load_history
 from superhero_project.routers.articles import _to_out
@@ -268,6 +269,7 @@ async def view_article_html(request: Request, identifier: str, db: DB) -> Respon
     """Render an article as an HTML page."""
     user = await get_current_user_opt(request, db)
     article_db = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    _check_article_access(user, article_db)
     index, page_name_map = await build_link_maps(db)
     article = _to_out(article_db, index, page_name_map)
     vote_upvotes, vote_downvotes, vote_score, user_vote = await _load_vote_context(

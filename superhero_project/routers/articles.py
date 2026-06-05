@@ -26,6 +26,7 @@ from superhero_project.db.models import User
 from superhero_project.db.models import UserRole
 from superhero_project.dependencies import DB
 from superhero_project.dependencies import get_current_user
+from superhero_project.dependencies import get_current_user_opt
 from superhero_project.domain.comic import ComicMetadata
 from superhero_project.domain.disambiguation import DisambiguationMetadata
 from superhero_project.domain.event import EventMetadata
@@ -119,6 +120,14 @@ def _can_edit(user: User, article: Article) -> bool:
         UserRole.moderator,
         UserRole.admin,
     )
+
+
+def _check_article_access(user: User | None, article: Article) -> None:
+    """Raise 403 if the article is not published and the user is not authorised."""
+    if article.status == ArticleStatus.published:
+        return
+    if user is None or not _can_edit(user, article):
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 
 def _to_out(
@@ -268,9 +277,11 @@ async def create_article(request: Request, body: ArticleCreate, db: DB) -> Artic
 
 
 @router.get("/{identifier}")
-async def get_article(identifier: str, db: DB) -> ArticleOut:
+async def get_article(request: Request, identifier: str, db: DB) -> ArticleOut:
     """Fetch a single article by page_name."""
+    user = await get_current_user_opt(request, db)
     article = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    _check_article_access(user, article)
     index, page_name_map = await build_link_maps(db)
     return _to_out(article, index, page_name_map)
 
@@ -319,10 +330,14 @@ async def update_article(
 
 
 @router.get("/{identifier}/history")
-async def get_article_history(identifier: str, db: DB) -> list[HistoryEntryOut]:
+async def get_article_history(
+    request: Request, identifier: str, db: DB
+) -> list[HistoryEntryOut]:
     """Return the edit history for an article, oldest first, each with a content
     diff."""
+    user = await get_current_user_opt(request, db)
     article = await fetch_article(identifier, db, [selectinload(Article.tags)])
+    _check_article_access(user, article)
     return _compute_diffs(await _load_history(article, db), article.content)
 
 
